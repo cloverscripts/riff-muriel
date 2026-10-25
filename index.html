@@ -38,175 +38,183 @@
   </svg>
 
 
-  <header class="titlebar" id="titlebar">
-    <div class="titlebar-drag">
+  <!-- Muriel Glass shell: window chrome. On computers the window buttons sit in the sidebar's top corner; on phones
+       this is the top bar (small title once the large title scrolls away, profile avatar on the right). -->
+  <header class="g-titlebar" id="titlebar">
+    <div class="titlebar-controls g-window-buttons">
+      <button class="g-light g-light-close" id="btn-close" title="Close" aria-label="Close" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 3.5l5 5M8.5 3.5l-5 5"/></svg>
+      </button>
+      <button class="g-light g-light-min" id="btn-minimize" title="Minimize" aria-label="Minimize" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.8 6h6.4"/></svg>
+      </button>
+      <button class="g-light g-light-max" id="btn-maximize" title="Maximize" aria-label="Maximize" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.4 7.9V3.4h4.5zM8.6 4.1v4.5H4.1z" fill="currentColor" stroke="none"/></svg>
+      </button>
+    </div>
+    <button class="g-icon-btn g-sidebar-toggle" id="g-sidebar-toggle" type="button" title="Show or hide the sidebar" aria-label="Show or hide the sidebar" data-i18n-attr="title aria-label">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.5"/><path d="M9.5 4.5v15"/><path d="M5.6 8h1.6M5.6 10.6h1.6"/></svg>
+    </button>
+    <div class="titlebar-drag g-titlebar-drag">
       <div class="app-logo">
         <svg class="logo-star" id="titlebar-logo-dot" viewBox="0 0 1024 1024" aria-hidden="true"><path class="s1" d="M500 160Q543.2 476.8 860 520Q543.2 563.2 500 880Q456.8 563.2 140 520Q456.8 476.8 500 160Z"/><path class="s2" d="M780 154Q791.5 238.5 876 250Q791.5 261.5 780 346Q768.5 261.5 684 250Q768.5 238.5 780 154Z"/></svg>
         <span class="logo-text">Muriel</span>
       </div>
+      <span class="g-top-title" id="g-top-title" aria-hidden="true"></span>
     </div>
-    <div class="titlebar-controls">
-      <button class="titlebar-btn" id="btn-mini-lyrics" title="Lyrics" aria-label="Lyrics">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+    <div class="g-mini-buttons">
+      <button class="g-icon-btn" id="btn-mini-lyrics" title="Lyrics" aria-label="Lyrics" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5c4.7 0 8.5 3 8.5 6.8s-3.8 6.7-8.5 6.7c-.9 0-1.8-.1-2.6-.3L5 19.5l1-3.4c-1.6-1.3-2.5-3-2.5-4.8C3.5 7.5 7.3 4.5 12 4.5z"/><path class="g-fill" d="M8.4 9.3h2.4v2.3c0 1.4-.7 2.3-1.9 2.7l-.4-.8c.6-.3 1-.8 1-1.5H8.4zM13.2 9.3h2.4v2.3c0 1.4-.7 2.3-1.9 2.7l-.4-.8c.6-.3 1-.8 1-1.5h-1.1z"/></svg>
       </button>
-      <button class="titlebar-btn" id="btn-mini-player" title="Compact mini player">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="11" y="11" width="8" height="8" rx="1"/></svg>
-      </button>
-      <button class="titlebar-btn" id="btn-minimize" title="Minimize">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-      </button>
-      <button class="titlebar-btn" id="btn-maximize" title="Maximize">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
-      </button>
-      <button class="titlebar-btn close-btn" id="btn-close" title="Close">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      <button class="g-icon-btn" id="btn-mini-player" title="Mini player" aria-label="Mini player" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.5"/><rect class="g-fill" x="11.5" y="11.5" width="7" height="5.5" rx="1.5"/></svg>
       </button>
     </div>
   </header>
 
-  <div class="top-nav">
-    <div class="search-box-wrapper">
-      <div class="search-box">
-        <button id="search-icon-btn" class="search-icon-btn" title="Search" type="button">
-          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="7"></circle>
-            <line x1="21" y1="21" x2="16.5" y2="16.5"></line>
-          </svg>
+  <!-- search: at the top of the sidebar on computers; on phones it opens from the round search button -->
+  <div class="g-search-area" id="g-search-area">
+    <div class="g-search-wrap">
+      <div class="g-search-field">
+        <button id="search-icon-btn" class="g-search-icon" title="Search" type="button" aria-label="Search" data-i18n-attr="title aria-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
         </button>
-        <input type="text" id="search-input" placeholder="Search tracks, artists, or albums..." autocomplete="off">
-        <button id="search-clear-btn" class="search-clear-btn hidden" title="Clear">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <input type="text" id="search-input" placeholder="Search" autocomplete="off" enterkeyhint="search" data-i18n-attr="placeholder">
+        <button id="search-clear-btn" class="g-search-clear hidden" title="Clear" aria-label="Clear" data-i18n-attr="title aria-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="g-fill" cx="12" cy="12" r="9"/><path class="g-cut" d="M9 9l6 6M15 9l-6 6"/></svg>
         </button>
       </div>
+      <button class="g-search-cancel" id="g-search-cancel" type="button" data-i18n>Cancel</button>
     </div>
 
-    <div class="platform-switch-container">
-      <div class="platform-pill-switch">
-        <button class="platform-btn active" data-platform="youtube" id="platform-yt" title="YouTube">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77C22 15.25 22 12 22 12s0-3.25-.42-4.81zM10 15V9l5.2 3L10 15z"/>
-          </svg>
-          <span>YouTube</span>
-        </button>
-        <button class="platform-btn" data-platform="ytmusic" id="platform-ytm" title="YouTube Music">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-12.5v9l6-4.5-6-4.5z"/>
-          </svg>
-          <span>YouTube Music</span>
-        </button>
-        <button class="platform-btn" data-platform="soundcloud" id="platform-sc" title="SoundCloud">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M11.5 14.5c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5s.5.22.5.5v4zm-2 0c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-3c0-.28.22-.5.5-.5s.5.22.5.5v3zm-2 0c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-2c0-.28.22-.5.5-.5s.5.22.5.5v2zm-2 0c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-1c0-.28.22-.5.5-.5s.5.22.5.5v1zm14.5-.5c0 1.93-1.57 3.5-3.5 3.5H13V9.1c.7-.6 1.6-1.1 2.6-1.1 2.2 0 4.1 1.6 4.4 3.8.3-.2.7-.3 1-.3 1.4 0 2.5 1.1 2.5 2.5z"/>
-          </svg>
-          <span>SoundCloud</span>
-        </button>
-      </div>
+    <!-- where to search: a scope control under the field -->
+    <div class="g-scope" role="radiogroup" aria-label="Search in" data-i18n-attr="aria-label">
+      <button class="g-scope-btn active" data-platform="youtube" id="platform-yt" title="YouTube">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77C22 15.25 22 12 22 12s0-3.25-.42-4.81zM10 15V9l5.2 3L10 15z"/></svg>
+        <span>YouTube</span>
+      </button>
+      <button class="g-scope-btn" data-platform="ytmusic" id="platform-ytm" title="YouTube Music">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-12.5v9l6-4.5-6-4.5z"/></svg>
+        <span>YT Music</span>
+      </button>
+      <button class="g-scope-btn" data-platform="soundcloud" id="platform-sc" title="SoundCloud">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.5 14.5c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5s.5.22.5.5v4zm-2 0c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-3c0-.28.22-.5.5-.5s.5.22.5.5v3zm-2 0c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-2c0-.28.22-.5.5-.5s.5.22.5.5v2zm-2 0c0 .28-.22.5-.5.5s-.5-.22-.5-.5v-1c0-.28.22-.5.5-.5s.5.22.5.5v1zm14.5-.5c0 1.93-1.57 3.5-3.5 3.5H13V9.1c.7-.6 1.6-1.1 2.6-1.1 2.2 0 4.1 1.6 4.4 3.8.3-.2.7-.3 1-.3 1.4 0 2.5 1.1 2.5 2.5z"/></svg>
+        <span>SoundCloud</span>
+      </button>
     </div>
   </div>
 
-  <div class="app-layout">
-    <aside class="sidebar" id="sidebar">
-      <nav class="sidebar-nav">
-        <div class="nav-active-indicator" id="nav-active-indicator"></div>
-
-        <button class="nav-item active" data-view="discover" id="nav-discover" title="Discover">
-          <div class="nav-indicator">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor"></polygon>
-            </svg>
-            <img id="nav-home-app-icon" class="nav-home-app-icon hidden" alt="" draggable="false">
-          </div>
+  <div class="g-app" id="g-app">
+    <!-- navigation: a floating glass sidebar on computers, the floating glass tab bar on phones -->
+    <aside class="g-sidebar" id="sidebar">
+      <div class="nav-active-indicator" id="nav-active-indicator" hidden></div>
+      <nav class="g-nav" aria-label="Muriel" id="g-nav">
+        <button class="g-nav-item active" data-view="discover" id="nav-discover" title="Home" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 10.6 12 3.9l8.2 6.7"/><path d="M5.8 9.1v9.7c0 .9.7 1.6 1.6 1.6h3v-5.6h3.2v5.6h3c.9 0 1.6-.7 1.6-1.6V9.1"/></svg>
+          <img id="nav-home-app-icon" class="nav-home-app-icon hidden" alt="" draggable="false">
+          <span class="g-nav-label" data-i18n>Home</span>
         </button>
 
-        <button class="nav-item" data-view="favorites" id="nav-favorites" title="Favorites">
-          <div class="nav-indicator">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-            </svg>
-            <span class="nav-badge" id="favorites-count">0</span>
-          </div>
+        <button class="g-nav-item" data-view="favorites" id="nav-favorites" title="Favorites" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.2s-7.6-4.5-9.1-9.4C1.9 7.6 4 4.6 7.3 4.6c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.3 0 5.4 3 4.4 6.2-1.5 4.9-9.1 9.4-9.1 9.4z"/></svg>
+          <span class="g-nav-label" data-i18n>Favorites</span>
+          <span class="nav-badge g-nav-count" id="favorites-count">0</span>
         </button>
 
-        <button class="nav-item nav-collapsed" data-view="albums" id="nav-albums" title="Albums">
-          <div class="nav-indicator">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-            <span class="nav-badge" id="albums-count">0</span>
-          </div>
+        <button class="g-nav-item nav-collapsed" data-view="albums" id="nav-albums" title="Albums" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.8" y="7.6" width="16.4" height="12.8" rx="2.6"/><path d="M6.4 4.6h11.2"/><circle cx="12" cy="14" r="2.4"/></svg>
+          <span class="g-nav-label" data-i18n>Albums</span>
+          <span class="nav-badge g-nav-count" id="albums-count">0</span>
         </button>
 
-        <button class="nav-item" data-view="local" id="nav-local" title="My files">
-          <div class="nav-indicator">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <span class="nav-badge" id="local-count">0</span>
-          </div>
+        <button class="g-nav-item" data-view="local" id="nav-local" title="My files" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 7.4c0-1.1.9-1.9 1.9-1.9h3.7c.6 0 1.1.3 1.5.7l1.3 1.6h6.5c1.1 0 1.9.9 1.9 1.9v8.4c0 1.1-.9 1.9-1.9 1.9H5.5c-1.1 0-1.9-.9-1.9-1.9z"/></svg>
+          <span class="g-nav-label" data-i18n>My files</span>
+          <span class="nav-badge g-nav-count" id="local-count">0</span>
         </button>
 
-        <button class="nav-item" data-view="history" id="nav-history" title="History">
-          <div class="nav-indicator">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
+        <button class="g-nav-item" data-view="history" id="nav-history" title="History" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.3V12l3.2 2"/></svg>
+          <span class="g-nav-label" data-i18n>History</span>
         </button>
 
+        <button class="g-nav-item g-nav-encore" id="g-nav-encore" type="button" title="Muriel Encore" data-g-click="#btn-open-encore">
+          <svg class="g-nav-icon g-fill-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512 96Q560 464 928 512Q560 560 512 928Q464 560 96 512Q464 464 512 96Z"/></svg>
+          <span class="g-nav-label">Encore</span>
+        </button>
 
-        <div class="rail-divider"></div>
-
-        <button class="nav-item" data-view="settings" id="nav-settings" title="Settings">
-          <div class="nav-indicator">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-          </div>
+        <button class="g-nav-item" data-view="settings" id="nav-settings" title="Settings" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.6h3.4l.5 2.4c.6.2 1.2.6 1.7 1l2.3-.8 1.7 2.9-1.8 1.6c.1.6.1 1.3 0 1.9l1.8 1.6-1.7 2.9-2.3-.8c-.5.4-1.1.8-1.7 1l-.5 2.4h-3.4l-.5-2.4c-.6-.2-1.2-.6-1.7-1l-2.3.8-1.7-2.9 1.8-1.6c-.1-.6-.1-1.3 0-1.9L4 9.1l1.7-2.9 2.3.8c.5-.4 1.1-.8 1.7-1z"/><circle cx="12" cy="12" r="2.7"/></svg>
+          <span class="g-nav-label" data-i18n>Settings</span>
         </button>
       </nav>
 
-      <div class="rail-divider"></div>
-
-      <div class="rail-action-group">
-        <button class="rail-icon-btn" id="btn-toggle-presets-drawer" title="Audio presets">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
-            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
-            <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
-            <line x1="17" y1="16" x2="23" y2="16"></line>
-          </svg>
+      <!-- the rail's two drawer buttons: audio presets (a popover beside the sidebar) and playlists (phones: the Library sheet) -->
+      <div class="g-rail-actions">
+        <button class="g-nav-item g-nav-presets" id="btn-toggle-presets-drawer" title="Audio presets" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h8.5M17.5 6.5H20M4 12h2.5M11.5 12H20M4 17.5h10.5M19.5 17.5h.5"/><circle cx="15" cy="6.5" r="2.3"/><circle cx="9" cy="12" r="2.3"/><circle cx="17" cy="17.5" r="2.3"/></svg>
+          <span class="g-nav-label" data-i18n>Presets</span>
         </button>
-        <button class="rail-icon-btn" id="btn-toggle-playlists-drawer" title="Playlists">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15V6M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM12 12H3M16 6H3M12 18H3"></path>
-          </svg>
+        <button class="g-nav-item g-nav-library" id="btn-toggle-playlists-drawer" title="Library" data-i18n-attr="title">
+          <svg class="g-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="11.4" height="11.4" rx="2.4"/><path d="M18.4 6.6v11.8c0 1.1-.9 2-2 2H6.6"/><path d="M21 9.4v9.7c0 1.1-.9 2-2 2H9.4" opacity=".55"/></svg>
+          <span class="g-nav-label" data-i18n>Library</span>
         </button>
       </div>
 
-      <div class="rail-drawer hidden" id="rail-drawer">
-        <div class="rail-drawer-header">
-          <span class="rail-drawer-title" id="rail-drawer-title" data-i18n>Playlists</span>
-          <div class="rail-drawer-header-actions">
-            <button class="btn-icon-pill" id="btn-save-preset-dialog" title="Save preset" aria-label="Save preset" style="display: none;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
-            <button class="btn-icon-pill" id="btn-new-playlist" title="Create playlist" aria-label="Create playlist">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
-            <button class="btn-icon-pill" id="btn-close-rail-drawer" title="Close drawer" aria-label="Close drawer">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
+      <!-- computers: the playlists, by name with a small cover (shell.js moves #playlists-list in here) -->
+      <section class="g-library" id="g-library" aria-label="Playlists" data-i18n-attr="aria-label">
+        <div class="g-section-head">
+          <span class="g-section-title" data-i18n>Playlists</span>
+          <button class="g-icon-btn g-section-add" id="g-new-playlist" type="button" title="Create playlist" aria-label="Create playlist" data-i18n-attr="title aria-label" data-g-click="#btn-new-playlist">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
+          </button>
         </div>
+      </section>
 
-        <div class="rail-drawer-section" id="drawer-section-presets">
-          <div class="presets-chips-container" id="presets-container"></div>
-        </div>
+      <div class="g-sidebar-foot" id="g-sidebar-foot"></div>
 
-        <div class="rail-drawer-section" id="drawer-section-playlists">
-          <div class="playlists-list" id="playlists-list"></div>
-        </div>
-      </div>
     </aside>
+
+    <!-- phones: search has its own round button beside the tab bar -->
+    <button class="g-tab-search" id="g-tab-search" type="button" title="Search" aria-label="Search" data-i18n-attr="title aria-label">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+    </button>
+
+    <!-- the rail drawer: audio presets (a popover beside the sidebar), and on phones the Library sheet -->
+    <div class="rail-drawer g-drawer hidden" id="rail-drawer">
+      <div class="g-drawer-grabber" aria-hidden="true"></div>
+      <div class="g-drawer-head">
+        <span class="g-drawer-title" id="rail-drawer-title" data-i18n>Playlists</span>
+        <div class="g-drawer-actions">
+          <button class="g-icon-btn" id="btn-save-preset-dialog" title="Save preset" aria-label="Save preset" style="display: none;" data-i18n-attr="title aria-label">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
+          </button>
+          <button class="g-icon-btn" id="btn-new-playlist" title="Create playlist" aria-label="Create playlist" data-i18n-attr="title aria-label">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
+          </button>
+          <button class="g-icon-btn g-close-btn" id="btn-close-rail-drawer" title="Close" aria-label="Close" data-i18n-attr="title aria-label">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- phones: the rest of the library sits at the top of this sheet -->
+      <div class="g-library-links" id="g-library-links">
+        <button type="button" class="g-link-row" data-g-click="#nav-history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.3V12l3.2 2"/></svg><span data-i18n>History</span></button>
+        <button type="button" class="g-link-row" data-g-click="#nav-albums" data-g-mirror="#nav-albums"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.8" y="7.6" width="16.4" height="12.8" rx="2.6"/><path d="M6.4 4.6h11.2"/><circle cx="12" cy="14" r="2.4"/></svg><span data-i18n>Albums</span></button>
+        <button type="button" class="g-link-row" data-g-click="#nav-local" data-g-mirror="#nav-local"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 7.4c0-1.1.9-1.9 1.9-1.9h3.7c.6 0 1.1.3 1.5.7l1.3 1.6h6.5c1.1 0 1.9.9 1.9 1.9v8.4c0 1.1-.9 1.9-1.9 1.9H5.5c-1.1 0-1.9-.9-1.9-1.9z"/></svg><span data-i18n>My files</span></button>
+        <button type="button" class="g-link-row" data-g-click="#btn-open-encore"><svg class="g-fill-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512 96Q560 464 928 512Q560 560 512 928Q464 560 96 512Q464 464 512 96Z"/></svg><span>Muriel Encore</span></button>
+        <button type="button" class="g-link-row" data-g-click="#btn-toggle-presets-drawer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h8.5M17.5 6.5H20M4 12h2.5M11.5 12H20M4 17.5h10.5M19.5 17.5h.5"/><circle cx="15" cy="6.5" r="2.3"/><circle cx="9" cy="12" r="2.3"/><circle cx="17" cy="17.5" r="2.3"/></svg><span data-i18n>Audio presets</span></button>
+      </div>
+
+      <div class="rail-drawer-section" id="drawer-section-presets">
+        <div class="presets-chips-container" id="presets-container"></div>
+      </div>
+
+      <div class="rail-drawer-section" id="drawer-section-playlists">
+        <div class="playlists-list" id="playlists-list"></div>
+      </div>
+    </div>
 
     <main class="main-content" id="main-content">
       <section class="content-view active" id="view-discover">
@@ -1970,68 +1978,82 @@
       </section>
     </main>
 
-    <aside class="right-panel lyrics-empty hidden" id="right-panel">
-      <div class="drawer-tabs" role="tablist">
-        <button class="drawer-tab active" data-drawer-tab="now" role="tab">Now playing</button>
-        <button class="drawer-tab" data-drawer-tab="queue" role="tab">Queue</button>
-        <button class="btn-icon-pill" id="btn-close-right-panel" title="Close">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    <!-- Now Playing. Computers: a floating glass panel on the right (lyrics / queue), or the whole window when opened from
+         the player's artwork. Phones: the full-screen Now Playing sheet. -->
+    <aside class="g-np lyrics-empty hidden" id="right-panel" aria-label="Now playing" data-i18n-attr="aria-label">
+      <div class="g-np-backdrop" aria-hidden="true"><img class="g-np-backdrop-img" id="g-np-backdrop-img" alt=""></div>
+      <div class="g-np-grabber" aria-hidden="true"></div>
+      <div class="g-np-top">
+        <button class="g-icon-btn g-np-collapse" id="g-np-collapse" type="button" title="Close" aria-label="Close" data-i18n-attr="title aria-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9.5 6 6 6-6"/></svg>
+        </button>
+        <div class="drawer-tabs g-segmented" role="tablist">
+          <button class="drawer-tab active" data-drawer-tab="now" role="tab">Now playing</button>
+          <button class="drawer-tab" data-drawer-tab="queue" role="tab">Queue</button>
+        </div>
+        <button class="g-icon-btn g-np-expand" id="g-np-expand" type="button" title="Full screen" aria-label="Full screen" data-i18n-attr="title aria-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4.5h5.5V10M10 19.5H4.5V14M19.5 4.5 13.8 10.2M4.5 19.5l5.7-5.7"/></svg>
+        </button>
+        <button class="g-icon-btn g-close-btn" id="btn-close-right-panel" title="Close" aria-label="Close" data-i18n-attr="title aria-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg>
         </button>
       </div>
-      <div class="drawer-pane" id="drawer-now">
-      <div class="right-panel-header">
-        <div class="right-panel-header-actions">
-          <button class="lyrics-mode-btn" id="btn-lyrics-mode" title="Toggle line mode">
-            <span data-i18n>Word</span>
-          </button>
+
+      <div class="drawer-pane g-np-now" id="drawer-now">
+        <div class="g-np-tools">
+          <div class="right-panel-header-actions">
+            <button class="g-chip" id="btn-lyrics-mode" title="Toggle line mode" data-i18n-attr="title">
+              <span data-i18n>Word</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="g-np-hero" id="right-panel-artwork-box">
+          <div class="cover-container g-np-art" id="cover-container">
+            <img src="" alt="" class="g-np-cover" id="right-panel-cover">
+            <div class="g-np-cover-fallback" id="right-panel-fallback">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 17.5V6.2l9-2v11.3"/><circle cx="7.3" cy="17.5" r="2.4"/><circle cx="16.3" cy="15.5" r="2.4"/></svg>
+            </div>
+            <div class="vinyl-overlay hidden" id="vinyl-overlay"></div>
+            <button id="btn-right-panel-art" class="g-art-edit" title="Change cover/banner for this track" aria-label="Change cover/banner for this track" data-i18n-attr="title aria-label">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4"/></svg>
+            </button>
+          </div>
+          <div class="g-np-meta">
+            <div class="right-panel-title-row g-np-title-row">
+              <h3 class="g-np-title" id="right-panel-title">No track playing</h3>
+            </div>
+            <span class="g-np-artist" id="right-panel-artist">Select a track to listen</span>
+          </div>
+        </div>
+
+        <div class="lyrics-section g-np-lyrics">
+          <div class="g-lyrics-head">
+            <div class="lyrics-header-actions g-lyrics-tools">
+              <button class="g-tool-btn" id="btn-add-custom-lyrics" title="Edit lyrics" aria-label="Edit lyrics" data-i18n-attr="title aria-label">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h3.8L18.6 9.2a2.2 2.2 0 0 0-3.1-3.1L5.2 16.4z"/><path d="m14 7.6 3.1 3.1"/></svg>
+                <span data-i18n>Edit</span>
+              </button>
+              <button class="g-tool-btn" id="btn-sync-lyrics" title="Sync lyrics" aria-label="Sync lyrics" data-i18n-attr="title aria-label">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.3V12l3.2 2"/></svg>
+                <span data-i18n>Sync</span>
+              </button>
+              <button class="g-tool-btn hidden" id="btn-translate-lyrics" title="Translate lyrics" aria-label="Translate lyrics" data-i18n-attr="title aria-label">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6h9M8 4v2c0 4-2 7-4.5 8.5M5.5 9.5c1 2.2 3 4 5.5 5"/><path d="m12.5 20 4-9.5 4 9.5M14 16.6h5"/></svg>
+              </button>
+              <button class="g-tool-btn" id="btn-tv-karaoke" title="Fullscreen karaoke" aria-label="Fullscreen karaoke" data-i18n-attr="title aria-label">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.8" y="4.5" width="18.4" height="12.5" rx="2.6"/><path d="M8 20h8"/><path d="M7.5 9h6M7.5 12.4h9"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="lyrics-container" id="lyrics-container"></div>
         </div>
       </div>
 
-      <div class="right-panel-artwork-box" id="right-panel-artwork-box">
-        <div class="cover-container" id="cover-container">
-          <img src="" alt="" class="right-panel-cover" id="right-panel-cover">
-          <div class="right-panel-cover-fallback" id="right-panel-fallback">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
-          </div>
-          <div class="vinyl-overlay hidden" id="vinyl-overlay"></div>
-          <button id="btn-right-panel-art" title="Change cover/banner for this track" aria-label="Change cover/banner for this track">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-          </button>
-        </div>
-        <div class="right-panel-meta">
-          <div class="right-panel-title-row" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0;">
-            <h3 class="right-panel-title" id="right-panel-title" style="flex: 1; min-width: 0;">No track playing</h3>
-          </div>
-          <span class="right-panel-artist" id="right-panel-artist">Select a track to listen</span>
-        </div>
-      </div>
-
-      <div class="lyrics-section">
-        <div class="lyrics-header">
-          <div class="lyrics-header-actions">
-            <button class="lyrics-action-btn" id="btn-add-custom-lyrics" title="Edit lyrics" aria-label="Edit lyrics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              <span>Edit</span>
-            </button>
-            <button class="lyrics-action-btn" id="btn-sync-lyrics" title="Sync lyrics" aria-label="Sync lyrics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-              <span>Sync</span>
-            </button>
-            <button class="lyrics-action-btn hidden" id="btn-translate-lyrics" title="Translate lyrics" aria-label="Translate lyrics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.11 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
-            </button>
-            <button class="lyrics-action-btn" id="btn-tv-karaoke" title="Fullscreen karaoke" aria-label="Fullscreen karaoke">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="lyrics-container" id="lyrics-container"></div>
-      </div>
-      </div>
-      <div class="drawer-pane hidden" id="drawer-queue">
-        <div class="drawer-queue-head">
-          <span class="drawer-queue-title">Up next</span>
-          <button class="btn-outline-pill" id="btn-clear-queue">Clear</button>
+      <div class="drawer-pane g-np-queue hidden" id="drawer-queue">
+        <div class="g-queue-head">
+          <span class="g-queue-title" data-i18n>Up next</span>
+          <button class="g-text-btn" id="btn-clear-queue">Clear</button>
         </div>
         <div class="tracks-list" id="queue-tracks-list">
           <div class="empty-hint">Queue is empty. Play a track to start.</div>
@@ -2040,110 +2062,110 @@
     </aside>
   </div>
 
-  <footer class="playbar" id="playbar">
-    <canvas id="playbar-bg-visualizer" class="playbar-bg-visualizer"></canvas>
-    <div class="playbar-left">
-      <div class="artwork-wrapper" id="playbar-artwork-wrapper">
-        <div class="m3c-wrap" id="m3c-wrap">
-          <img src="" alt="" class="track-artwork" id="playbar-artwork">
-          <canvas class="m3c-canvas" id="m3c-canvas"></canvas>
-        </div>
-        <div class="artwork-fallback" id="artwork-fallback">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
-        </div>
-      </div>
-      <div class="track-meta">
-        <div class="track-title-marquee">
-          <span class="track-title" id="playbar-title">No track playing</span>
-        </div>
-        <span class="track-artist" id="playbar-artist">Select a track to listen</span>
-      </div>
-      <button class="btn-icon-pill" id="btn-toggle-fav" title="Favorite">
-        <svg id="fav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
+  <!-- the player. Computers: transport controls, the "LCD" (artwork, title, progress) and tools, centred at the top of the
+       window; at the bottom of Now Playing when it fills the window; the whole window in the mini player.
+       Phones: the mini player above the tab bar, and the controls of the Now Playing sheet. -->
+  <footer class="g-player" id="playbar">
+    <canvas id="playbar-bg-visualizer" class="playbar-bg-visualizer" hidden></canvas>
+
+    <div class="g-transport">
+      <button class="g-tbtn g-tbtn-side" id="btn-shuffle" title="Shuffle" aria-label="Shuffle" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.2h2.6c1.7 0 3.3.9 4.2 2.3l3.4 5.2c.9 1.4 2.5 2.3 4.2 2.3h3.4"/><path d="M3 16.8h2.6c1.7 0 3.3-.9 4.2-2.3l.4-.6M13.6 9.1l.4-.6c.9-1.4 2.5-2.3 4.2-2.3h2.6"/><path d="m18.3 4 2.8 2.8-2.8 2.8M18.3 14.4l2.8 2.8-2.8 2.8"/></svg>
       </button>
-      <button class="btn-icon-pill" id="btn-edit-current-track" title="Edit track title and artist">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      <button class="g-tbtn" id="btn-prev" title="Previous" aria-label="Previous" data-i18n-attr="title aria-label">
+        <svg class="g-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.6 7v10c0 .8-.9 1.2-1.5.8l-7-5a1 1 0 0 1 0-1.6l7-5c.6-.4 1.5 0 1.5.8zM21.1 7v10c0 .8-.9 1.2-1.5.8l-7-5a1 1 0 0 1 0-1.6l7-5c.6-.4 1.5 0 1.5.8z"/></svg>
       </button>
-      <button class="btn-icon-pill" id="btn-playbar-more" title="Download track">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+      <button class="g-tbtn g-play" id="btn-play-pause" title="Play or pause" aria-label="Play or pause" data-i18n-attr="title aria-label">
+        <svg id="play-icon" class="g-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 5.3v13.4c0 1 1.1 1.6 1.9 1.1l10.4-6.7c.8-.5.8-1.7 0-2.2L9.1 4.2c-.8-.5-1.9.1-1.9 1.1z"/></svg>
+        <svg id="pause-icon" class="g-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.6" width="4.3" height="14.8" rx="1.3"/><rect x="13.7" y="4.6" width="4.3" height="14.8" rx="1.3"/></svg>
+        <svg id="playbar-spinner" class="hidden g-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/></svg>
       </button>
-      <button class="btn-icon-pill muriel-share-action-btn" id="btn-playbar-share" title="Share this song" aria-label="Share this song">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
+      <button class="g-tbtn" id="btn-next" title="Next" aria-label="Next" data-i18n-attr="title aria-label">
+        <svg class="g-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.9 7v10c0 .8.9 1.2 1.5.8l7-5a1 1 0 0 0 0-1.6l-7-5c-.6-.4-1.5 0-1.5.8zM12.4 7v10c0 .8.9 1.2 1.5.8l7-5a1 1 0 0 0 0-1.6l-7-5c-.6-.4-1.5 0-1.5.8z"/></svg>
+      </button>
+      <button class="g-tbtn g-tbtn-side" id="btn-repeat" title="Repeat" aria-label="Repeat" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 11.2V9.8A3.6 3.6 0 0 1 7.4 6.2h12.4"/><path d="m17.2 3.4 2.8 2.8-2.8 2.8"/><path d="M20.2 12.8v1.4a3.6 3.6 0 0 1-3.6 3.6H4.2"/><path d="m6.8 20.6-2.8-2.8 2.8-2.8"/><polyline class="repeat-one-mark" points="10.5 10.5 12.5 9 12.5 15" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
       </button>
     </div>
 
-    <div class="playbar-center">
-      <div class="playback-controls">
-        <button class="control-btn" id="btn-shuffle" title="Shuffle">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
-        </button>
-        <button class="control-btn" id="btn-prev" title="Previous">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line></svg>
-        </button>
-        <div class="play-pause-wrapper">
-          <button class="btn-play-pause" id="btn-play-pause" title="Play or pause">
-            <svg id="play-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19"></polygon></svg>
-            <svg id="pause-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
-            <svg id="playbar-spinner" class="hidden m3-circular-progress" viewBox="0 0 48 48" style="width: 24px; height: 24px; position: absolute; margin: auto; inset: 0;"><circle class="m3-spinner-track" cx="24" cy="24" r="18" fill="none" stroke-width="4"></circle><circle class="m3-spinner-head" cx="24" cy="24" r="18" fill="none" stroke-width="4"></circle></svg>
-          </button>
-        </div>
-        <button class="control-btn" id="btn-next" title="Next">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line></svg>
-        </button>
-        <button class="control-btn" id="btn-repeat" title="Repeat" data-i18n-attr="title aria-label">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path><polyline class="repeat-one-mark" points="10.5 10.5 12.5 9 12.5 15" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
-        </button>
+    <div class="g-lcd" id="g-lcd">
+      <button class="g-lcd-art" id="playbar-artwork-wrapper" type="button" title="Now playing" aria-label="Now playing" data-i18n-attr="title aria-label">
+        <span class="m3c-wrap g-lcd-art-img" id="m3c-wrap">
+          <img src="" alt="" class="g-lcd-cover" id="playbar-artwork">
+          <canvas class="m3c-canvas" id="m3c-canvas" hidden></canvas>
+        </span>
+        <span class="g-lcd-art-fallback" id="artwork-fallback">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 17.5V6.2l9-2v11.3"/><circle cx="7.3" cy="17.5" r="2.4"/><circle cx="16.3" cy="15.5" r="2.4"/></svg>
+        </span>
+      </button>
+      <div class="g-lcd-meta">
+        <span class="g-lcd-title" id="playbar-title">No track playing</span>
+        <span class="g-lcd-artist" id="playbar-artist">Select a track to listen</span>
       </div>
-
-      <div class="scrubber-bar-wrapper">
-        <span class="time-label" id="time-current">0:00</span>
-        <div class="scrubber-track-container" id="scrubber-track">
-        </div>
-        <span class="time-label" id="time-duration">0:00</span>
+      <button class="g-icon-btn g-lcd-fav" id="btn-toggle-fav" title="Favorite" aria-label="Favorite" data-i18n-attr="title aria-label">
+        <svg id="fav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.2s-7.6-4.5-9.1-9.4C1.9 7.6 4 4.6 7.3 4.6c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.3 0 5.4 3 4.4 6.2-1.5 4.9-9.1 9.4-9.1 9.4z"/></svg>
+      </button>
+      <div class="g-scrub">
+        <span class="g-time" id="time-current">0:00</span>
+        <div class="scrubber-track-container g-scrub-track" id="scrubber-track" role="slider" aria-label="Seek" data-i18n-attr="aria-label"><span class="g-scrub-fill" aria-hidden="true"></span><span class="g-scrub-knob" aria-hidden="true"></span></div>
+        <span class="g-time" id="time-duration">0:00</span>
       </div>
     </div>
 
-    <div class="playbar-right">
-      <div class="visualizer-container" id="visualizer-container" title="Visualizer">
-        <canvas id="visualizer-canvas" width="60" height="24"></canvas>
-      </div>
-
-      <button class="btn-icon-pill" id="btn-toggle-queue" title="Queue">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-        <span class="playbar-badge nav-badge" id="queue-count">0</span>
-      </button>
-
-      <button class="btn-icon-pill" id="btn-toggle-lyrics-panel" title="Now playing &amp; lyrics">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-      </button>
-
-      <button class="btn-icon-pill" id="btn-open-settings" title="Audio">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
-        <span class="settings-dot hidden" id="settings-modified-dot"></span>
-      </button>
-
-      <div class="volume-control-group">
-        <button class="btn-icon-pill" id="btn-volume-mute" title="Mute or unmute">
-          <svg id="volume-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
-          <svg id="volume-muted-icon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+    <div class="g-tools">
+      <div class="g-volume">
+        <button class="g-icon-btn" id="btn-volume-mute" title="Mute or unmute" aria-label="Mute or unmute" data-i18n-attr="title aria-label">
+          <svg id="volume-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="g-fill" d="M3.5 9.6c0-.6.5-1.1 1.1-1.1h2.8l4.1-3.6c.6-.5 1.5-.1 1.5.7v12.8c0 .8-.9 1.2-1.5.7l-4.1-3.6H4.6c-.6 0-1.1-.5-1.1-1.1z"/><path d="M16 9.2a4 4 0 0 1 0 5.6M18.8 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>
+          <svg id="volume-muted-icon" class="hidden" viewBox="0 0 24 24" aria-hidden="true"><path class="g-fill" d="M3.5 9.6c0-.6.5-1.1 1.1-1.1h2.8l4.1-3.6c.6-.5 1.5-.1 1.5.7v12.8c0 .8-.9 1.2-1.5.7l-4.1-3.6H4.6c-.6 0-1.1-.5-1.1-1.1z"/><path d="m16.2 9.6 4.8 4.8M21 9.6l-4.8 4.8"/></svg>
         </button>
-        <div class="volume-slider-wrapper">
-          <input type="range" class="pill-range volume-range" id="volume-slider" min="0" max="1" step="0.01" value="0.85">
-        </div>
+        <input type="range" class="g-slider sl-done" id="volume-slider" min="0" max="1" step="0.01" value="0.85" aria-label="Volume" data-i18n-attr="aria-label">
       </div>
+      <button class="g-icon-btn g-tool-lyrics" id="btn-toggle-lyrics-panel" title="Lyrics" aria-label="Lyrics" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5c4.7 0 8.5 3 8.5 6.8s-3.8 6.7-8.5 6.7c-.9 0-1.8-.1-2.6-.3L5 19.5l1-3.4c-1.6-1.3-2.5-3-2.5-4.8C3.5 7.5 7.3 4.5 12 4.5z"/><path class="g-fill" d="M8.4 9.3h2.4v2.3c0 1.4-.7 2.3-1.9 2.7l-.4-.8c.6-.3 1-.8 1-1.5H8.4zM13.2 9.3h2.4v2.3c0 1.4-.7 2.3-1.9 2.7l-.4-.8c.6-.3 1-.8 1-1.5h-1.1z"/></svg>
+      </button>
+      <button class="g-icon-btn g-tool-queue" id="btn-toggle-queue" title="Queue" aria-label="Queue" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5h11.5M9 12h11.5M9 17.5h11.5"/><circle class="g-fill" cx="4.6" cy="6.5" r="1.3"/><circle class="g-fill" cx="4.6" cy="12" r="1.3"/><circle class="g-fill" cx="4.6" cy="17.5" r="1.3"/></svg>
+        <span class="g-badge" id="queue-count" style="display: none">0</span>
+      </button>
+      <button class="g-icon-btn g-tool-more" id="g-more-btn" type="button" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="g-fill" cx="5.5" cy="12" r="1.7"/><circle class="g-fill" cx="12" cy="12" r="1.7"/><circle class="g-fill" cx="18.5" cy="12" r="1.7"/></svg>
+        <span class="g-dot hidden" id="settings-modified-dot"></span>
+      </button>
+      <div class="visualizer-container" id="visualizer-container" hidden><canvas id="visualizer-canvas" width="60" height="24"></canvas></div>
+    </div>
+
+    <!-- the player's "more" menu: the song's own actions (same buttons as before, so app.js's handlers keep working) -->
+    <div class="g-menu g-more-menu" id="g-more-menu" role="menu" hidden>
+      <button class="g-menu-item" id="btn-playbar-more" role="menuitem" title="Download track" data-i18n-attr="title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.6v8.2M8.6 12.6 12 16l3.4-3.4"/></svg><span data-i18n>Download</span>
+      </button>
+      <button class="g-menu-item muriel-share-action-btn" id="btn-playbar-share" role="menuitem" title="Share this song" aria-label="Share this song" data-i18n-attr="title aria-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5V3.8M8.4 7.2 12 3.6l3.6 3.6"/><path d="M8.5 10H7a2 2 0 0 0-2 2v6.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V12a2 2 0 0 0-2-2h-1.5"/></svg><span data-i18n>Share song</span>
+      </button>
+      <button class="g-menu-item" id="btn-edit-current-track" role="menuitem" title="Edit track title and artist" data-i18n-attr="title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h3.8L18.6 9.2a2.2 2.2 0 0 0-3.1-3.1L5.2 16.4z"/><path d="m14 7.6 3.1 3.1"/></svg><span data-i18n>Edit title &amp; artist</span>
+      </button>
+      <div class="g-menu-sep" role="separator"></div>
+      <button class="g-menu-item" id="btn-open-settings" role="menuitem" title="Audio" data-i18n-attr="title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h8.5M17.5 6.5H20M4 12h2.5M11.5 12H20M4 17.5h10.5M19.5 17.5h.5"/><circle cx="15" cy="6.5" r="2.3"/><circle cx="9" cy="12" r="2.3"/><circle cx="17" cy="17.5" r="2.3"/></svg><span data-i18n>Speed, pitch &amp; effects</span>
+      </button>
+      <button class="g-menu-item" id="g-mi-sleep" role="menuitem" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1z"/></svg><span data-i18n>Sleep timer</span><span class="g-menu-value" id="g-mi-sleep-value"></span>
+      </button>
+      <button class="g-menu-item" id="g-mi-karaoke" role="menuitem" type="button" data-g-click="#btn-tv-karaoke">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.8" y="4.5" width="18.4" height="12.5" rx="2.6"/><path d="M8 20h8"/><path d="M7.5 9h6M7.5 12.4h9"/></svg><span data-i18n>Karaoke</span>
+      </button>
+      <button class="g-menu-item g-desktop-only" id="g-mi-mini" role="menuitem" type="button" data-g-click="#btn-mini-player">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.5"/><rect x="11.5" y="11.5" width="7" height="5.5" rx="1.5"/></svg><span data-i18n>Mini player</span>
+      </button>
     </div>
     <div class="mini-lyrics-container hidden" id="mini-lyrics-container"></div>
   </footer>
 
   <audio id="native-audio" crossorigin="anonymous" preload="auto"></audio>
 
-  <div class="track-loading-overlay hidden" id="track-loading-overlay">
-    <div class="m3-spinner-container">
-      <svg class="m3-circular-progress" viewBox="0 0 48 48">
-        <circle class="m3-spinner-track" cx="24" cy="24" r="18" fill="none" stroke-width="4"></circle>
-        <circle class="m3-spinner-head" cx="24" cy="24" r="18" fill="none" stroke-width="4"></circle>
-      </svg>
-    </div>
+  <div class="g-loading hidden" id="track-loading-overlay" aria-hidden="true">
+    <svg class="g-spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></svg>
   </div>
 
   <div class="modal-backdrop cache-backdrop hidden" id="cache-modal">
@@ -3176,17 +3198,11 @@
       <div class="tv-bg-layer active" id="tv-bg-layer-a"></div>
       <div class="tv-bg-layer" id="tv-bg-layer-b"></div>
     </div>
-    <button class="tv-karaoke-close" id="btn-tvk-settings" title="Customize lyrics" aria-label="Customize lyrics">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-      </svg>
+    <button class="g-round-btn tvk-btn-close" id="btn-close-tv-karaoke" title="Close (Esc)" aria-label="Close" data-i18n-attr="title aria-label">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9.5 6 6 6-6"/></svg>
     </button>
-    <button class="tv-karaoke-close" id="btn-close-tv-karaoke" title="Close (Esc)" aria-label="Close">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
+    <button class="g-round-btn tvk-btn-settings" id="btn-tvk-settings" title="Customize lyrics" aria-label="Customize lyrics" data-i18n-attr="title aria-label">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 18.5 9 5.5h1.4l5.5 13M5.6 13.7h8.1"/><path d="M17.5 10.5v8M20.5 12.5v6"/></svg>
     </button>
     <div class="tvk-panel" id="tvk-panel">
       <div class="tvk-row">
@@ -3331,24 +3347,22 @@
           </div>
         </div>
         <div class="tvk-controls" id="tvk-controls">
-          <button class="control-btn" id="btn-tvk-prev" title="Previous" aria-label="Previous">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line></svg>
+          <button class="g-tbtn" id="btn-tvk-prev" title="Previous" aria-label="Previous" data-i18n-attr="title aria-label">
+            <svg class="g-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.6 7v10c0 .8-.9 1.2-1.5.8l-7-5a1 1 0 0 1 0-1.6l7-5c.6-.4 1.5 0 1.5.8zM21.1 7v10c0 .8-.9 1.2-1.5.8l-7-5a1 1 0 0 1 0-1.6l7-5c.6-.4 1.5 0 1.5.8z"/></svg>
           </button>
-          <div class="play-pause-wrapper">
-            <button class="btn-play-pause" id="btn-tvk-play" title="Play or pause" aria-label="Play or pause">
-              <svg id="tvk-play-icon" class="play-icon" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19"></polygon></svg>
-              <svg id="tvk-pause-icon" class="pause-icon" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
-              <svg id="tvk-play-spinner" class="play-spinner hidden m3-circular-progress" viewBox="0 0 48 48" style="width: 26px; height: 26px; position: absolute; margin: auto; inset: 0;"><circle class="m3-spinner-track" cx="24" cy="24" r="18" fill="none" stroke-width="4"></circle><circle class="m3-spinner-head" cx="24" cy="24" r="18" fill="none" stroke-width="4"></circle></svg>
-            </button>
-          </div>
-          <button class="control-btn" id="btn-tvk-next" title="Next" aria-label="Next">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line></svg>
+          <button class="g-tbtn g-play" id="btn-tvk-play" title="Play or pause" aria-label="Play or pause" data-i18n-attr="title aria-label">
+            <svg id="tvk-play-icon" class="g-glyph play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 5.3v13.4c0 1 1.1 1.6 1.9 1.1l10.4-6.7c.8-.5.8-1.7 0-2.2L9.1 4.2c-.8-.5-1.9.1-1.9 1.1z"/></svg>
+            <svg id="tvk-pause-icon" class="g-glyph pause-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.6" width="4.3" height="14.8" rx="1.3"/><rect x="13.7" y="4.6" width="4.3" height="14.8" rx="1.3"/></svg>
+            <svg id="tvk-play-spinner" class="play-spinner hidden g-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/></svg>
+          </button>
+          <button class="g-tbtn" id="btn-tvk-next" title="Next" aria-label="Next" data-i18n-attr="title aria-label">
+            <svg class="g-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.9 7v10c0 .8.9 1.2 1.5.8l7-5a1 1 0 0 0 0-1.6l-7-5c-.6-.4-1.5 0-1.5.8zM12.4 7v10c0 .8.9 1.2 1.5.8l7-5a1 1 0 0 0 0-1.6l-7-5c-.6-.4-1.5 0-1.5.8z"/></svg>
           </button>
         </div>
         <div class="tvk-progress-row" id="tvk-progress-row">
-          <span class="time-label" id="tvk-time-current">0:00</span>
-          <input type="range" class="pill-range" id="tvk-seek-slider" min="0" max="1000" step="1" value="0" aria-label="Seek">
-          <span class="time-label" id="tvk-time-duration">0:00</span>
+          <span class="g-time" id="tvk-time-current">0:00</span>
+          <input type="range" class="g-slider sl-done" id="tvk-seek-slider" min="0" max="1000" step="1" value="0" aria-label="Seek">
+          <span class="g-time" id="tvk-time-duration">0:00</span>
         </div>
       </div>
       <div class="tv-karaoke-content" id="tv-karaoke-content"></div>
@@ -3398,7 +3412,7 @@
     </div>
   </div>
 
-  <div class="toast-container" id="toast-container"></div>
+  <div class="g-toasts" id="toast-container" aria-live="polite"></div>
 
 
   <div class="modal-backdrop hidden" id="command-palette">
@@ -3450,5 +3464,6 @@
   <script src="lastfm.js"></script>
   <script src="backup-core.js"></script>
   <script src="backup.js"></script>
+  <script src="glass/shell.js"></script>
 </body>
 </html>

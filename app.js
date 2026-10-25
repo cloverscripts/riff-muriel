@@ -2681,6 +2681,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const followSpeed = isDraggingScrubber ? 32 : 45;
         scrubProgress += (targetProgress - scrubProgress) * Math.min(1, dt * followSpeed);
 
+        // Muriel Glass draws the progress as a thin line itself (glass/shell.js); the canvas stays blank
+        const glassScrub = window.MurielGlass && window.MurielGlass.progress;
+        if (glassScrub) glassScrub(scrubProgress, isDraggingScrubber);
+        if (!glassScrub) {
         const targetAnim = isDraggingScrubber ? 1 : 0;
         scrubKnobAnim += (targetAnim - scrubKnobAnim) * Math.min(1, dt * 16);
         const curKnobW = 7.5 + (9.0 - 7.5) * scrubKnobAnim;
@@ -2767,6 +2771,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           sCtx.roundRect(knobLeft, centerY - curKnobH / 2, curKnobW, curKnobH, curKnobR);
           sCtx.fillStyle = primaryColor;
           sCtx.fill();
+        }
         }
       }
     }
@@ -11367,7 +11372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const m3c = { canvas: null, ctx: null, img: new Image(), imgReady: false, from: 0, to: 0, start: 0, raf: 0, last: 0, phase: 0, hoverProgress: 0, isHovered: false };
   // phones keep the plain cover: the animated ring doesn't fit the mini player and its loop costs battery
-  function m3cEnabled() { return !isPhoneApp && localStorage.getItem('muriel_m3_cover') !== '0' && !document.body.classList.contains('perf'); }
+  function m3cEnabled() { return !isPhoneApp && !window.MurielGlass && localStorage.getItem('muriel_m3_cover') !== '0' && !document.body.classList.contains('perf'); }
   function m3cInit() {
     m3c.canvas = document.getElementById('m3c-canvas');
     if (!m3c.canvas) return;
