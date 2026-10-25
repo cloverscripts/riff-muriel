@@ -210,8 +210,10 @@
 
     <main class="main-content" id="main-content">
       <section class="content-view active" id="view-discover">
+        <div class="g-navbar" aria-hidden="true"><div class="g-navbar-bar"><span class="g-navbar-title"></span></div></div>
         <div class="home-ambient" id="home-ambient"><div class="home-ambient-layer"></div><div class="home-ambient-layer"></div></div>
         <div class="discover-content" id="discover-empty">
+          <header class="g-page-header"><h1 class="g-large-title" id="home-large-title" data-i18n>Home</h1></header>
 
           <div class="home-hero" id="home-hero">
             <div class="home-hero-track" id="home-hero-track">
@@ -286,13 +288,16 @@
         </div>
 
         <div class="search-results-container hidden" id="search-results-container">
+          <h2 class="g-section-title g-search-head" id="search-top-head" data-i18n>Top Result</h2>
           <div id="search-artist-card-container"></div>
           <div id="search-albums-container"></div>
+          <h2 class="g-section-title g-search-head" id="search-songs-head" data-i18n>Songs</h2>
           <div class="tracks-list" id="search-tracks-list"></div>
         </div>
       </section>
 
       <section class="content-view" id="view-favorites">
+        <div class="g-navbar" aria-hidden="true"><div class="g-navbar-bar"><span class="g-navbar-title"></span></div></div>
         <div class="view-header">
           <div>
             <h2>Favorites</h2>
@@ -334,6 +339,7 @@
       </section>
 
       <section class="content-view" id="view-albums">
+        <div class="g-navbar" aria-hidden="true"><div class="g-navbar-bar"><span class="g-navbar-title"></span></div></div>
         <div class="view-header">
           <div>
             <h2>Albums</h2>
@@ -344,6 +350,7 @@
       </section>
 
       <section class="content-view" id="view-local">
+        <div class="g-navbar" aria-hidden="true"><div class="g-navbar-bar"><span class="g-navbar-title"></span></div></div>
         <div class="view-header">
           <div>
             <h2>My files</h2>
@@ -370,6 +377,7 @@
       </section>
 
       <section class="content-view" id="view-history">
+        <div class="g-navbar" aria-hidden="true"><div class="g-navbar-bar"><span class="g-navbar-title"></span></div></div>
         <div class="view-header">
           <h2>History</h2>
           <button class="btn-outline-pill btn-encore" id="btn-open-encore"><svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M512 32Q570 454 992 512Q570 570 512 992Q454 570 32 512Q454 454 512 32Z"/></svg>Muriel Encore</button>
@@ -382,9 +390,12 @@
 
 
       <section class="content-view" id="view-playlist-detail">
-        <button class="btn-icon-pill" id="btn-back-playlists" title="Back" style="margin-bottom: 12px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        </button>
+        <div class="g-navbar"><div class="g-navbar-bar">
+          <button class="btn-icon-pill g-nav-btn" id="btn-back-playlists" title="Back" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"></polyline></svg>
+          </button>
+          <span class="g-navbar-title" aria-hidden="true"></span>
+        </div></div>
         <div class="playlist-detail-header">
           <div class="hero-fx" id="playlist-hero-fx"></div>
           <div class="playlist-cover-wrapper" id="playlist-detail-cover"></div>
@@ -394,72 +405,80 @@
             <div id="playlist-detail-desc" class="playlist-inline-desc" data-placeholder="Add a description..." role="textbox" aria-label="Playlist description"></div>
             <span class="view-subtitle" id="playlist-detail-count">0 tracks</span>
             <div class="action-bar playlist-actions">
-              <button id="btn-play-playlist" title="Play" aria-label="Play">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19"></polygon></svg>
+              <button class="g-btn-play" id="btn-play-playlist" title="Play" aria-label="Play">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.4-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"></path></svg>
+                <span data-i18n>Play</span>
               </button>
               <button class="btn-outline-pill" id="btn-shuffle-playlist" title="Shuffle play" aria-label="Shuffle play">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
                 <span>Shuffle</span>
               </button>
-              <button class="btn-icon-pill" id="btn-share-playlist" title="Share playlist" aria-label="Share playlist">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-              </button>
+              <div class="g-action-icons">
+                <button class="btn-outline-pill" id="btn-download-playlist" title="Download all songs" aria-label="Download all songs">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <span id="btn-download-playlist-label">Download all</span>
+                </button>
+                <button class="btn-icon-pill" id="btn-share-playlist" title="Share playlist" aria-label="Share playlist">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                </button>
+                <button class="btn-icon-pill" id="btn-fav-all-playlist" title="Add all to favorites" aria-label="Add all to favorites">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                </button>
+                <button class="btn-icon-pill" id="btn-rename-playlist" title="Rename playlist" aria-label="Rename playlist">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                </button>
+                <button class="btn-icon-pill" id="btn-export-playlist" title="Export as JSON file" aria-label="Export as JSON file">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="12" x2="12" y2="18"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
+                </button>
+                <button class="btn-icon-pill delete-btn" id="btn-delete-playlist" title="Delete playlist" aria-label="Delete playlist">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+              </div>
               <button class="btn-outline-pill hidden" id="btn-dedupe-playlist" title="Remove duplicate tracks">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span id="btn-dedupe-playlist-label" data-i18n>Remove duplicates</span>
               </button>
-              <select class="pill-select" id="playlist-sort" title="Sort playlist" aria-label="Sort playlist" hidden>
-                <option value="manual">Manual order</option>
-                <option value="added-desc">Date added (newest)</option>
-                <option value="added-asc">Date added (order added)</option>
-                <option value="title-asc">Title (A-Z)</option>
-                <option value="title-desc">Title (Z-A)</option>
-                <option value="artist-asc">Artist (A-Z)</option>
-                <option value="album-asc">Album</option>
-                <option value="duration-asc">Duration (shortest)</option>
-              </select>
-              <div class="m3-dropdown sort-dropdown" id="playlist-sort-dropdown">
-                <button class="m3-dropdown-trigger" id="playlist-sort-trigger" type="button" title="Sort playlist" aria-label="Sort playlist" aria-haspopup="listbox">
-                  <svg class="sort-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="7" y1="12" x2="17" y2="12"></line><line x1="10" y1="18" x2="14" y2="18"></line></svg>
-                  <span id="playlist-sort-label">Manual order</span>
-                  <svg class="m3-dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </button>
-                <div class="m3-dropdown-menu" id="playlist-sort-menu" role="listbox"></div>
-              </div>
-              <button class="btn-outline-pill" id="btn-select-playlist" title="Select tracks" aria-label="Select tracks">
-                <span>Select</span>
-              </button>
-              <button class="btn-outline-pill" id="btn-download-playlist" title="Download all songs" aria-label="Download all songs">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span id="btn-download-playlist-label">Download all</span>
-              </button>
-              <button class="btn-icon-pill" id="btn-fav-all-playlist" title="Add all to favorites" aria-label="Add all to favorites">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-              </button>
-              <button class="btn-icon-pill" id="btn-rename-playlist" title="Rename playlist" aria-label="Rename playlist">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              </button>
-              <button class="btn-icon-pill" id="btn-export-playlist" title="Export as JSON file" aria-label="Export as JSON file">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="12" x2="12" y2="18"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
-              </button>
-              <button class="btn-icon-pill delete-btn" id="btn-delete-playlist" title="Delete playlist" aria-label="Delete playlist">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              </button>
             </div>
           </div>
         </div>
-        <div class="view-search-box" id="playlist-search-box">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></svg>
-          <input type="text" class="view-search-input" id="playlist-search-input" placeholder="Search in playlist..." autocomplete="off">
+        <div class="g-list-toolbar">
+          <div class="view-search-box" id="playlist-search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></svg>
+            <input type="text" class="view-search-input" id="playlist-search-input" placeholder="Search in playlist..." autocomplete="off">
+          </div>
+          <select class="pill-select" id="playlist-sort" title="Sort playlist" aria-label="Sort playlist" hidden>
+            <option value="manual">Manual order</option>
+            <option value="added-desc">Date added (newest)</option>
+            <option value="added-asc">Date added (order added)</option>
+            <option value="title-asc">Title (A-Z)</option>
+            <option value="title-desc">Title (Z-A)</option>
+            <option value="artist-asc">Artist (A-Z)</option>
+            <option value="album-asc">Album</option>
+            <option value="duration-asc">Duration (shortest)</option>
+          </select>
+          <div class="m3-dropdown sort-dropdown" id="playlist-sort-dropdown">
+            <button class="m3-dropdown-trigger" id="playlist-sort-trigger" type="button" title="Sort playlist" aria-label="Sort playlist" aria-haspopup="listbox">
+              <svg class="sort-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="7" y1="12" x2="17" y2="12"></line><line x1="10" y1="18" x2="14" y2="18"></line></svg>
+              <span id="playlist-sort-label">Manual order</span>
+              <svg class="m3-dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="m3-dropdown-menu" id="playlist-sort-menu" role="listbox"></div>
+          </div>
+          <button class="btn-outline-pill" id="btn-select-playlist" title="Select tracks" aria-label="Select tracks">
+            <span>Select</span>
+          </button>
         </div>
         <div class="tracks-list" id="playlist-tracks-list"></div>
       </section>
 
       <section class="content-view" id="view-album">
+        <div class="g-navbar"><div class="g-navbar-bar">
+          <button class="btn-icon-pill g-nav-btn" id="btn-back-album" title="Back" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"></polyline></svg>
+          </button>
+          <span class="g-navbar-title" aria-hidden="true"></span>
+        </div></div>
         <div class="hero-fx" id="album-hero-fx"></div>
-        <button class="btn-icon-pill" id="btn-back-album" title="Back" style="margin-bottom: 16px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        </button>
         <div class="album-layout">
           <aside class="album-side">
             <div class="album-cover-wrapper" id="album-detail-cover"></div>
@@ -467,8 +486,9 @@
             <button class="album-artist-btn" id="album-detail-artist" type="button"></button>
             <div class="album-meta-line" id="album-detail-count">0 tracks</div>
             <div class="album-actions">
-              <button class="btn-pill-primary" id="btn-play-album" type="button" title="Play" aria-label="Play" style="margin-top:16px;width:64px;height:64px;min-width:64px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;" disabled>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" style="margin-left:3px;"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+              <button class="btn-pill-primary g-btn-play" id="btn-play-album" type="button" title="Play" aria-label="Play" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.4-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"></path></svg>
+                <span data-i18n>Play</span>
               </button>
               <button type="button" class="btn-icon-pill" id="btn-save-album" title="Save album" aria-label="Save album" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
             </div>
@@ -481,12 +501,15 @@
       </section>
 
       <section class="content-view" id="view-artist">
+        <div class="g-navbar"><div class="g-navbar-bar">
+          <button class="btn-icon-pill btn-back-artist g-nav-btn" id="btn-back-artist" title="Back" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"></polyline></svg>
+          </button>
+          <span class="g-navbar-title" aria-hidden="true"></span>
+        </div></div>
         <div class="artist-hero-wrap">
           <div class="artist-hero" id="artist-hero">
             <img id="artist-hero-img" class="artist-hero-img" src="" alt="" decoding="async">
-            <button class="btn-icon-pill btn-back-artist" id="btn-back-artist" title="Back" aria-label="Back">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            </button>
             <div class="artist-hero-info">
               <div class="artist-name-row">
                 <h1 class="artist-title" id="artist-profile-name">Artist</h1>
@@ -3441,6 +3464,7 @@
   <script src="update-notifier.js"></script>
   <script src="lyrics-match.js"></script>
   <script src="encore.js"></script>
+  <script src="glass/views.js"></script>
   <script src="assets/peerjs.min.js"></script>
   <script src="assets/qrcode.js"></script>
   <script src="sync-core.js"></script>
