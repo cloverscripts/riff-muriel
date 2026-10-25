@@ -1,6 +1,6 @@
 // Builds the iOS web bundle into www/: Muriel's desktop frontend + server.js running in-app.
 import { build } from 'esbuild';
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildInfoScript } from '../tools/build-info.mjs';
@@ -46,6 +46,8 @@ for (const f of ['app.js', 'styles.css', 'audio-engine.js', 'm3shapes.js', 'lyri
 writeFileSync(join(out, 'build-info.js'), buildInfoScript(''));
 cpSync(join(root, 'assets'), join(out, 'assets'), { recursive: true });
 cpSync(join(root, 'mobile', 'mobile.css'), join(out, 'mobile.css'));
+// Muriel Glass (the redesign branch): its stylesheets and scripts
+if (existsSync(join(root, 'glass'))) cpSync(join(root, 'glass'), join(out, 'glass'), { recursive: true });
 cpSync(join(root, 'mobile', 'mobile-ui.js'), join(out, 'mobile-ui.js'));
 
 // profiles-core.js stays the first script: everything after it (mobile-bridge.js too) sees the open profile's storage
