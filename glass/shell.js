@@ -47,8 +47,10 @@
   if (audio) {
     const fromAudio = () => {
       if (performance.now() - lastHook < 300) return;
-      const d = audio.duration;
-      setProgress(d > 0 && Number.isFinite(d) ? audio.currentTime / d : 0, true);
+      // streams without a known length fall back to the song's own duration, as app.js does
+      const st = window.MurielCore && window.MurielCore.state;
+      const d = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : Number((st && st.currentTrack && st.currentTrack.duration) || 0);
+      setProgress(d > 0 ? audio.currentTime / d : 0, true);
     };
     ['timeupdate', 'seeked', 'emptied', 'loadedmetadata', 'durationchange'].forEach((t) => audio.addEventListener(t, fromAudio));
   }

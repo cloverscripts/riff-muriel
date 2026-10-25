@@ -758,7 +758,7 @@ body.g-np-full .g-lcd { display: contents; }
 body.g-np-full .g-lcd::before, body.g-np-full .g-lcd::after { content: none; }
 body.g-np-full .g-lcd-art, body.g-np-full .g-lcd-meta, body.g-np-full .g-lcd-fav { display: none; }
 body.g-np-full .g-scrub { position: relative; inset: auto; grid-column: 1 / -1; grid-row: 1; height: 18px; gap: 10px; }
-body.g-np-full .g-time { position: static; opacity: 1; font-size: 11px; min-width: 34px; }
+body.g-np-full .g-time, body.g-np-full .g-lcd .g-time { display: block; position: static; opacity: 1; font-size: 11px; min-width: 34px; }
 body.g-np-full .g-scrub-track::before, body.g-np-full .g-scrub-fill { height: 4px; margin-top: -2px; }
 body.g-np-full .g-scrub-fill { background: var(--g-np-text); }
 body.g-np-full .g-transport { grid-column: 2; grid-row: 2; gap: 10px; }
@@ -854,7 +854,7 @@ body.g-np-full #toast-container.g-toasts { bottom: 150px; }
 /* update banner (update-notifier.js) and "Continue here?" (sync.js): a glass notification at the top right */
 .update-banner {
   left: auto !important; right: 18px !important; top: calc(var(--g-inset) + var(--g-bar-h) + 12px) !important;
-  transform: translateY(-10px) !important; width: 360px !important; max-width: calc(100vw - 24px) !important;
+  transform: translateY(-10px) !important; width: 400px !important; max-width: calc(100vw - 24px) !important;
   padding: 12px 12px 12px 14px !important; gap: 12px !important; border: 0 !important; border-radius: var(--g-r-m) !important;
   background: var(--g-glass-fill-strong) !important; color: var(--g-label) !important;
   -webkit-backdrop-filter: blur(30px) saturate(var(--g-glass-saturate)); backdrop-filter: blur(30px) saturate(var(--g-glass-saturate));
@@ -865,7 +865,7 @@ body.g-np-full #toast-container.g-toasts { bottom: 150px; }
 .update-banner.show { transform: none !important; }
 .update-banner-star { width: 34px !important; height: 34px !important; padding: 8px; border-radius: 9px; fill: #fff !important; background: linear-gradient(145deg, var(--g-accent), color-mix(in srgb, var(--g-accent) 60%, #5E5CE6)); flex: none; }
 .update-banner-text b { font: 600 14px/1.25 var(--g-font) !important; color: var(--g-label); }
-.update-banner-text span { font: 400 13px/1.3 var(--g-font) !important; color: var(--g-label-2) !important; }
+.update-banner-text span { font: 400 13px/1.3 var(--g-font) !important; color: var(--g-label-2) !important; white-space: normal !important; }
 .update-banner button { height: 30px !important; padding: 0 12px !important; border-radius: 999px !important; font: 600 13px/1 var(--g-font) !important; box-shadow: none !important; }
 .update-banner-later { background: var(--g-fill) !important; color: var(--g-label) !important; }
 .update-banner-go { background: var(--g-accent) !important; color: var(--g-on-accent) !important; }
@@ -979,7 +979,8 @@ body.mini .g-lcd-fav, body.mini .g-tools, body.mini .g-tbtn-side, body.mini .g-m
 body.mini .g-transport { grid-column: 2; grid-row: 1; align-self: end; justify-self: start; margin-inline-start: -8px; -webkit-app-region: no-drag; }
 body.mini .g-scrub { position: relative; inset: auto; grid-column: 1 / -1; grid-row: 2; height: 14px; }
 body.mini.mini-lyrics-on .g-scrub { grid-row: 3; }
-body.mini .g-time { position: static; opacity: 1; }
+body.mini .g-time, body.mini .g-lcd .g-time { display: block; position: static; opacity: 1; }
+body.mini .g-scrub-knob { display: none; }
 body.mini #mini-lyrics-container { display: none !important; }
 body.mini.mini-lyrics-on #mini-lyrics-container { display: flex !important; grid-column: 1 / -1; grid-row: 2; -webkit-app-region: no-drag; padding: 4px 0 !important; }
 body.mini .mini-lyric-line { font-family: var(--g-font); font-weight: 600; color: var(--g-label); }
@@ -1415,3 +1416,5 @@ html.is-mobile body.perf #sidebar.g-sidebar::before { display: none; }
 html.is-mobile body.np-open.g-lyrics-empty #btn-toggle-lyrics-panel { opacity: 0.4; }
 /* mobile.css hid the lyrics button in the old sheet; here it switches the sheet to full-screen lyrics */
 html.is-mobile body.np-open #playbar #btn-toggle-lyrics-panel { display: inline-flex !important; }
+/* the mini window with nothing loaded still says so (the LCD's star needs the full toolbar) */
+body.mini:not(.g-has-track) .g-lcd > * { visibility: visible; }
