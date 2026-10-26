@@ -12,14 +12,15 @@
   --g-inset: 10px;                                    /* floating panels sit this far from the window edges */
   --g-side-w: 248px;                                  /* sidebar width (60px collapsed) */
   --g-bar-h: 52px;                                    /* the toolbar row */
-  --g-content-left: calc(var(--g-inset) * 2 + var(--g-side-w));
-  --g-content-top: calc(var(--g-inset) + var(--g-bar-h) + 10px);
+  --g-main-left: calc(var(--g-inset) * 2 + var(--g-side-w));
+  --g-main-top: calc(var(--g-inset) + var(--g-bar-h) + 10px);
   --g-np-text: #fff;                                  /* Now Playing sits on the artwork's colours: always light text */
   --g-np-text-2: rgba(255, 255, 255, 0.62);
   --g-np-text-3: rgba(255, 255, 255, 0.34);
   --g-np-fill: rgba(255, 255, 255, 0.16);
 }
-body.g-sidebar-collapsed { --g-side-w: 60px; }
+/* --g-main-left is worked out on :root, so the collapsed width has to be carried into it here as well */
+body.g-sidebar-collapsed { --g-side-w: 60px; --g-main-left: calc(var(--g-inset) * 2 + 60px); }
 
 html, html body { background: var(--g-bg) !important; }
 /* Material's decorative backdrops (organic shapes, the theme-coloured mesh) are gone; your own background picture or
@@ -291,18 +292,21 @@ body.g-sidebar-collapsed .g-scope { display: none !important; }
    ============================================================================================ */
 #g-app { position: static; display: block; z-index: auto; }
 #main-content.main-content {
-  position: fixed !important; inset: 0 0 0 var(--g-content-left) !important;
+  position: fixed !important; inset: 0 0 0 var(--g-main-left) !important;
   width: auto !important; height: auto !important; max-height: none !important; min-height: 0 !important;
-  margin: 0 !important; padding: var(--g-content-top) 28px 40px !important;
+  margin: 0 !important; padding: var(--g-main-top) 28px 40px !important;
   border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
   overflow-x: hidden !important; overflow-y: auto !important; z-index: 1;
-  scroll-padding-top: var(--g-content-top);
+  scroll-padding-top: var(--g-main-top);
   transition: left var(--g-dur) var(--g-ease);
+  /* the layout contract with glass/views.css: how much of this scroll box the floating chrome covers.
+     The box itself already starts beside the sidebar, so only the toolbar covers it (at the top). */
+  --g-content-left: 0px; --g-content-right: 0px; --g-content-top: var(--g-main-top); --g-content-bottom: 0px;
 }
 /* the soft scroll edge under the toolbar: content blurs and fades as it passes beneath */
 #g-app::before {
   content: ""; position: fixed; z-index: 2; pointer-events: none;
-  left: var(--g-content-left); right: 0; top: 0; height: calc(var(--g-content-top) + 14px);
+  left: var(--g-main-left); right: 0; top: 0; height: calc(var(--g-main-top) + 14px);
   background: linear-gradient(to bottom, color-mix(in srgb, var(--g-bg) 78%, transparent), color-mix(in srgb, var(--g-bg) 30%, transparent));
   -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
   -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent);
@@ -316,7 +320,7 @@ body.g-scrolled #g-app::before { opacity: 1; }
    ============================================================================================ */
 #playbar.g-player {
   position: fixed; z-index: 60;
-  top: var(--g-inset); left: var(--g-content-left); right: var(--g-inset); bottom: auto;
+  top: var(--g-inset); left: var(--g-main-left); right: var(--g-inset); bottom: auto;
   width: auto; height: var(--g-bar-h); min-height: 0; max-height: none;
   margin: 0; padding: 0 4px; border: 0; border-radius: 0; background: none; box-shadow: none;
   display: flex; align-items: center; justify-content: center; gap: 18px;
@@ -1085,6 +1089,9 @@ html.is-mobile #main-content.main-content {
   padding: calc(var(--safe-top) + 48px) var(--g-edge) calc(var(--g-chrome-bottom) + 24px) !important;
   scroll-padding-top: calc(var(--safe-top) + 52px);
   -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+  /* layout contract with glass/views.css: the top bar covers the top, the tab bar and mini player the bottom */
+  --g-content-left: 0px; --g-content-right: 0px;
+  --g-content-top: calc(var(--safe-top, 0px) + 48px); --g-content-bottom: var(--g-chrome-bottom);
 }
 html.is-mobile #g-app::before { display: none; }
 
@@ -1147,7 +1154,7 @@ html.is-mobile body.g-search-open #g-search-area {
   display: flex; position: fixed; z-index: 3050; left: var(--g-edge); right: var(--g-edge); top: calc(var(--safe-top) + 8px); width: auto; gap: 10px;
 }
 html.is-mobile body.g-search-open #titlebar.g-titlebar { visibility: hidden; }
-html.is-mobile body.g-search-open #main-content.main-content { padding-top: calc(var(--safe-top) + 112px) !important; }
+html.is-mobile body.g-search-open #main-content.main-content { padding-top: calc(var(--safe-top) + 112px) !important; --g-content-top: calc(var(--safe-top, 0px) + 112px); }
 html.is-mobile .g-search-wrap { gap: 12px; }
 html.is-mobile .g-search-field {
   height: 44px; padding: 0 10px 0 12px; gap: 8px; border-radius: 999px;

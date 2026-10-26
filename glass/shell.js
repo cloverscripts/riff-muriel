@@ -196,6 +196,7 @@
     const home = $('#nav-discover');
     if (home && !home.classList.contains('active')) home.click();
     body.classList.add('g-search-open');
+    if (main) main.scrollTop = 0;
     if (searchInput) setTimeout(() => searchInput.focus(), 30);
   };
   const closeSearch = (clear) => {
