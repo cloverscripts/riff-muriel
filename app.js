@@ -7232,8 +7232,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeTrackContextMenu();
     const isFav = state.favorites.some(f => isSameTrack(f, track));
     const items = [
-      { label: 'Play', run: () => row.click() },
-      { label: 'Play next', run: () => {
+      { label: 'Play', icon: 'play', run: () => row.click() },
+      { label: 'Play next', icon: 'next', run: () => {
         if (!state.queue.length || state.queueIndex < 0) { playTrack(track); return; }
         state.queue = state.queue.filter((t, i) => i <= state.queueIndex || !isSameTrack(t, track));
         state.queue.splice(state.queueIndex + 1, 0, track);
@@ -7243,7 +7243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateQueueBadge();
         showToast(Tm('Playing next'), 'success');
       } },
-      { label: 'Add to queue', run: () => {
+      { label: 'Add to queue', icon: 'queue', run: () => {
         // only songs still to come count: one that already played is queued again
         const upcoming = state.queue.findIndex((t, i) => i > state.queueIndex && isSameTrack(t, track));
         if (upcoming >= 0 || (state.queue[state.queueIndex] && isSameTrack(state.queue[state.queueIndex], track))) {
@@ -7254,8 +7254,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateQueueBadge();
         showToast(Tm('Added to queue'), 'success');
       } },
-      { label: 'Add to playlist…', run: () => openAddToPlaylistModal(track) },
-      { label: isFav ? 'Remove from favorites' : 'Add to favorites', run: () => {
+      { label: 'Add to playlist…', icon: 'playlist', run: () => openAddToPlaylistModal(track) },
+      { label: isFav ? 'Remove from favorites' : 'Add to favorites', icon: isFav ? 'unfav' : 'fav', run: () => {
         toggleFavoriteTrack(track);
         const on = state.favorites.some(f => isSameTrack(f, track));
         const svg = row.querySelector('.btn-row-fav svg');
@@ -7263,13 +7263,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       } }
     ];
     if (track.artist && !/^unknown artist$/i.test(track.artist)) {
-      items.push({ label: 'Go to artist', run: () => openTrackArtist(track) });
+      items.push({ label: 'Go to artist', icon: 'artist', run: () => openTrackArtist(track) });
     }
     if (track.platform !== 'local') {
-      items.push({ label: 'Download…', run: () => openDownloadModal(track) });
+      items.push({ label: 'Download…', icon: 'download', run: () => openDownloadModal(track) });
     }
     if (context === 'playlist') {
-      items.push({ label: 'Remove from playlist', danger: true, run: () => removeTrackFromCurrentPlaylist(track) });
+      items.push({ label: 'Remove from playlist', icon: 'remove', danger: true, run: () => removeTrackFromCurrentPlaylist(track) });
     }
 
     const menu = document.createElement('div');
@@ -7279,6 +7279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'track-context-item' + (item.danger ? ' danger' : '');
+      b.dataset.icon = item.icon; // Muriel Glass draws a symbol per item (glass/settings.css)
       b.setAttribute('role', 'menuitem');
       b.textContent = T(item.label);
       b.dataset.i18n = '';
@@ -13566,7 +13567,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (data.partial) {
         const skipped = data.skippedPlaylists || [];
         const details = skipped.map(pl => `• ${pl.name}: ${pl.error}`).join('\n');
-        if (!window.confirm(`${skipped.length} Spotify playlist(s) could not be read:\n${details}\n\nImport the available tracks only?`)) {
+        const importRest = window.MurielGlass && window.MurielGlass.confirm
+          ? await window.MurielGlass.confirm({ title: `${skipped.length} Spotify playlist(s) could not be read`, message: `${details}\n\nImport the available tracks only?`, ok: 'Import' })
+          : window.confirm(`${skipped.length} Spotify playlist(s) could not be read:\n${details}\n\nImport the available tracks only?`);
+        if (!importRest) {
           if (spotifyStatus) {
             spotifyStatus.textContent = 'Partial import cancelled';
             spotifyStatus.classList.remove('hidden');
@@ -17079,11 +17083,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast(Tm('This is already the music folder'));
         return;
       }
-      const move = window.confirm(
-        T('Move your existing music to the new folder?') + '\n\n' +
-        T('OK: move all downloaded and imported files, then restart Muriel.') + '\n' +
-        T('Cancel: switch to the new folder without moving (files stay in the old one).')
-      );
+      // Muriel Glass asks with an alert (glass/settings.js); the browser's confirm() otherwise
+      const move = window.MurielGlass && window.MurielGlass.confirm
+        ? await window.MurielGlass.confirm({ title: T('Move your existing music to the new folder?'), message: T('Move: all downloaded and imported files go along, then Muriel restarts. Don\u2019t move: Muriel switches to the new folder and the files stay in the old one.'), ok: T('Move'), cancel: T('Don\u2019t move') })
+        : window.confirm(
+          T('Move your existing music to the new folder?') + '\n\n' +
+          T('OK: move all downloaded and imported files, then restart Muriel.') + '\n' +
+          T('Cancel: switch to the new folder without moving (files stay in the old one).')
+        );
       btnChangeMusicFolder.disabled = true;
       const originalLabel = btnChangeMusicFolder.textContent;
       btnChangeMusicFolder.textContent = move ? 'Moving...' : 'Switching...';

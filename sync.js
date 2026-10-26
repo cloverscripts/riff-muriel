@@ -618,6 +618,8 @@
     const i = e.target.querySelector('.sync-code-input');
     if (i) joinWithCode(i.value);
   }
+  // Muriel Glass draws the question as an alert (glass/settings.js); the browser's confirm() otherwise
+  const ask = (o, plain) => (window.MurielGlass && window.MurielGlass.confirm ? window.MurielGlass.confirm(o) : Promise.resolve(confirm(plain)));
   function onClick(e) {
     const b = e.target.closest('[data-act]');
     if (!b) return;
@@ -630,8 +632,16 @@
       if (f) f.focus();
     }
     else if (act === 'stop-link') { wantCode = false; stopLinking(); }
-    else if (act === 'unlink') { const m = members[b.dataset.id]; if (m && confirm(I18n.Tf('Unlink {0}? Its music stays on it, it just stops syncing.', m.name))) unlink(b.dataset.id); }
-    else if (act === 'leave') { if (confirm(I18n.T('Stop syncing this device? Everything stays on it.'))) leave(); }
+    else if (act === 'unlink') {
+      const m = members[b.dataset.id];
+      const id = b.dataset.id;
+      if (m) ask({ title: I18n.Tf('Unlink {0}?', m.name), message: I18n.T('Its music stays on it, it just stops syncing.'), ok: I18n.T('Unlink'), destructive: true },
+        I18n.Tf('Unlink {0}? Its music stays on it, it just stops syncing.', m.name)).then((yes) => { if (yes) unlink(id); });
+    }
+    else if (act === 'leave') {
+      ask({ title: I18n.T('Stop syncing this device?'), message: I18n.T('Everything stays on it.'), ok: I18n.T('Stop syncing'), destructive: true },
+        I18n.T('Stop syncing this device? Everything stays on it.')).then((yes) => { if (yes) leave(); });
+    }
     else if (act === 'invite-setup') { inviteStep = 'theme'; renderInvite(); }
     else if (act === 'invite-dismiss') { write(K.invite, 'dismissed'); renderInvite(); }
     else if (act === 'theme-yes' || act === 'theme-no') { write(K.cats, { ...read(K.cats, {}), look: act === 'theme-yes' }); inviteStep = 'pair'; render(); }

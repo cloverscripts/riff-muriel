@@ -203,6 +203,8 @@ if (Capacitor.getPlatform() === 'android') {
       if (closeBtn) closeBtn.click(); else modal.click();
       return;
     }
+    // Muriel Glass: a Settings section goes back to the list of sections (glass/settings.js)
+    if (window.MurielGlassBack && window.MurielGlassBack()) return;
     const tv = document.getElementById('tv-karaoke');
     if (visible(tv)) { document.getElementById('btn-close-tv-karaoke').click(); return; }
     const drawer = document.getElementById('rail-drawer');
