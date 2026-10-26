@@ -130,8 +130,10 @@
   // The shell can say how tall that is (--g-chrome-bottom); when it doesn't, measure the player and the tab bar.
   function initChromeBottom() {
     const root = document.documentElement;
+    const bar = document.getElementById('multi-select-bar');
     const measure = () => {
-      if (getComputedStyle(root).getPropertyValue('--g-chrome-bottom').trim()) return;
+      // declared by the shell (on :root, html or body: wherever the bar inherits it from)
+      if (getComputedStyle(bar || document.body).getPropertyValue('--g-chrome-bottom').trim()) return;
       let h = 0;
       document.querySelectorAll('#playbar, #sidebar').forEach((el) => {
         const r = el.getBoundingClientRect();

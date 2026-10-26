@@ -11,8 +11,8 @@
      --g-content-left    space covered at its leading edge (a sidebar the content scrolls under)    default 0px
      --g-content-right   same at the trailing edge                                                  default 0px
      --g-chrome-bottom   height of the window's bottom chrome, for controls fixed to the window (the
-                         multi-select bar). Default: glass/views.js measures #playbar / #sidebar when they
-                         are docked at the bottom, else 0px.
+                         multi-select bar, a child of body: set it on :root, html or body). Default:
+                         glass/views.js measures #playbar / #sidebar when they are docked at the bottom, else 0px.
    Each page has a compact bar (.g-navbar, sticky at --g-content-top): back button on pushed pages, and the
    page's title fading in once its large title scrolls away (glass/views.js; body.g-title-collapsed mirrors it).
    Content is never glass: only the back buttons, the multi-select bar and the hover play buttons are. */
@@ -138,7 +138,9 @@ body.theme-light { --gv-seg-thumb: #fff; }
   position: absolute;
   inset: 0 0 -18px 0;
   z-index: -1;
-  background: linear-gradient(180deg, var(--g-bg) 0%, color-mix(in srgb, var(--g-bg) 92%, transparent) 50%, color-mix(in srgb, var(--g-bg) 55%, transparent) 78%, transparent 100%);
+  /* the scroll edge: the page colour (content sits on --g-bg) under the bar, fading out below it, plus a fading blur
+     where blur is allowed; phones draw no blur, so the fill alone has to keep the title clear of what passes under */
+  background: linear-gradient(180deg, var(--g-bg) 0%, var(--g-bg) 56%, color-mix(in srgb, var(--g-bg) 72%, transparent) 78%, transparent 100%);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent);
@@ -458,7 +460,11 @@ html .track-row-duration {
   font-variant-numeric: tabular-nums;
   color: var(--g-label-2) !important;
 }
-html .track-row .track-row-actions { display: flex; align-items: center; gap: 0; opacity: 1 !important; flex: none; }
+/* the row's buttons sit in its own flex line: the hover ones before the time, "..." (or remove) after it */
+html .track-row .track-row-actions { display: contents !important; opacity: 1 !important; }
+html .track-row .track-row-actions > :is(.btn-row-fav, .btn-row-art, .btn-row-add-playlist) { order: 3; }
+html .track-row > .track-row-duration { order: 4; }
+html .track-row .track-row-actions > :is(.btn-row-more, .btn-row-remove-local, .btn-row-remove-playlist) { order: 5; }
 html .track-row .track-row-actions > .btn-icon-pill {
   width: 32px !important;
   height: 32px !important;
@@ -488,7 +494,9 @@ html .track-row .track-row-actions > .delete-btn:hover { color: var(--g-red) !im
 html .track-row::after {
   content: "";
   position: absolute;
+  top: auto;
   bottom: 0;
+  z-index: 0;
   inset-inline-start: calc(var(--gv-row-x) + var(--gv-lead) + var(--gv-row-art) + 12px);
   inset-inline-end: var(--gv-row-x);
   height: 1px;
@@ -498,6 +506,13 @@ html .track-row::after {
   pointer-events: none;
 }
 html .track-row:not(:has(.track-row-thumb))::after { inset-inline-start: calc(var(--gv-row-x) + var(--gv-lead) + 28px + 12px); }
+/* standard-density screens: a full pixel, as macOS draws its separators there */
+@media (max-resolution: 1.5dppx) {
+  html .track-row::after,
+  #section-on-repeat .onrepeat-row::after,
+  .encore .enc-list li + li::before,
+  .encore .enc-card-foot::before { transform: none; }
+}
 html .track-row:last-child::after,
 html .track-row:is(:hover, .selected, .is-dragging)::after,
 html .track-row:has(+ .track-row:is(:hover, .selected))::after { opacity: 0; }
@@ -741,8 +756,8 @@ html .track-row.is-held:not(.is-dragging) { transform: scale(0.985); background-
   inset: 0;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   border-radius: inherit;
   overflow: hidden;
   background: var(--g-fill);
@@ -1105,6 +1120,7 @@ html .g-collage > img {
 #section-on-repeat .onrepeat-row::after {
   content: "";
   position: absolute;
+  top: auto;
   bottom: 0;
   inset-inline: calc(var(--gv-row-x) + 26px + 12px + var(--gv-row-art) + 12px) var(--gv-row-x);
   height: 1px;
@@ -1173,7 +1189,7 @@ html .g-collage > img {
 #view-discover .sp-fade { -webkit-mask-image: none !important; mask-image: none !important; text-overflow: ellipsis; }
 #view-discover .sp-row { display: flex !important; grid-auto-columns: unset; }
 #view-discover .sp-row > .sp-card { width: var(--gv-card); }
-#view-discover .sp-grid-cover { gap: 0 !important; padding: 0 !important; }
+#view-discover .sp-grid-cover { gap: 0 !important; padding: 0 !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; grid-template-rows: repeat(2, minmax(0, 1fr)) !important; }
 #view-discover .sp-grid-cover img { border-radius: 0 !important; }
 #view-discover .fav-artists-row > .fav-artist-card { width: calc(var(--gv-card) * 0.86); }
 
@@ -1342,7 +1358,7 @@ html .g-collage > img {
 #main-content:has(> #view-album.active) { overflow-y: auto !important; }
 #view-album.active { height: auto !important; overflow: visible !important; }
 #view-album > :not(#album-hero-fx) { z-index: auto !important; }
-#view-album > .g-navbar { position: sticky !important; z-index: 40 !important; }
+#main-content > #view-album > .g-navbar { position: sticky !important; z-index: 40 !important; }
 #view-album .album-layout { display: block !important; padding: 0 !important; height: auto; min-height: 0; }
 #view-album .album-side {
   display: grid !important;
@@ -1372,7 +1388,7 @@ html .g-collage > img {
   outline-offset: -0.5px;
 }
 #view-album #album-detail-cover img { border-radius: 0 !important; box-shadow: none !important; }
-#view-album #album-detail-cover .album-grid-cover { gap: 0 !important; padding: 0 !important; border-radius: 0 !important; background: none !important; }
+#view-album #album-detail-cover .album-grid-cover { gap: 0 !important; padding: 0 !important; border-radius: 0 !important; background: none !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; grid-template-rows: repeat(2, minmax(0, 1fr)) !important; }
 #view-album #album-detail-cover .album-grid-cover img { border-radius: 0 !important; }
 #view-album #album-detail-title {
   margin: 0;
