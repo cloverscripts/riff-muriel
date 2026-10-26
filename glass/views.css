@@ -1847,3 +1847,8 @@ body.perf .track-row { animation: none !important; transition: none !important; 
 body.perf .g-navbar-bar::before, body.perf .g-navbar-title { transition: none !important; }
 body.perf .g-navbar-bar::before { -webkit-backdrop-filter: none; backdrop-filter: none; }
 body.perf :is(#home-hero .my-wave-track-play-overlay, #main-content .fav-artist-hover .btn-play-fav) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(30, 30, 34, 0.8) !important; }
+
+/* ---------- inside the glass shell ---------- */
+/* The shell draws the top edge itself: on phones its glass top area carries the page's small title (pushed pages
+   included), on computers the toolbar fades the content passing under it. The compact bar keeps only its back buttons. */
+#main-content .g-navbar-title, #main-content .g-navbar-bar::before { display: none !important; }
