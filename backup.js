@@ -152,7 +152,12 @@
     const what = [`${c.playlists} playlist${c.playlists === 1 ? '' : 's'}`, `${c.favorites} favorite${c.favorites === 1 ? '' : 's'}`];
     const from = backup.source === 'riff' ? 'this Riff account' : (backup.profileName ? `the backup of "${backup.profileName}"` : 'this backup');
     const linked = (() => { try { return !!localStorage.getItem('muriel_sync_group'); } catch (e) { return false; } })();
-    const ok = window.confirm(`Restore ${from} (${what.join(', ')}) into ${me ? `the profile "${me}"` : 'Muriel'}?\n\nIts playlists, favorites, history and settings are replaced by the backup's.${linked ? ' Devices this profile syncs with get the restored ones too.' : ''} Muriel restarts afterwards.`);
+    const question = `Restore ${from} (${what.join(', ')}) into ${me ? `the profile "${me}"` : 'Muriel'}?`;
+    const details = `Its playlists, favorites, history and settings are replaced by the backup's.${linked ? ' Devices this profile syncs with get the restored ones too.' : ''} Muriel restarts afterwards.`;
+    // Muriel Glass draws the question as an alert (glass/settings.js); the browser's confirm() otherwise
+    const ok = window.MurielGlass && window.MurielGlass.confirm
+      ? await window.MurielGlass.confirm({ title: question, message: details, ok: 'Restore', destructive: true })
+      : window.confirm(`${question}\n\n${details}`);
     if (!ok) return;
     // stop what would save over the restored keys while the page goes away
     try { if (core.state && core.state.isPlaying) core.togglePlay(); if (core.audio) core.audio.pause(); } catch (e) {}

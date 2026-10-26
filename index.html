@@ -671,9 +671,12 @@
                   <div class="m3-dropdown-list" id="ui-lang-list"></div>
                 </div>
               </div>
-              <div id="ui-lang-hint" style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline); margin-top: 6px;">Muriel's menus and messages. Other languages are translated automatically by Google Translate the first time, then kept on this device. Song titles, names and your playlists are never sent.</div>
             </div>
 
+                </div>
+                <div class="settings-group-footer" id="ui-lang-hint">Muriel's menus and messages. Other languages are translated automatically by Google Translate the first time, then kept on this device. Song titles, names and your playlists are never sent.</div>
+                <div class="settings-group-title gs-header">Display</div>
+                <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top">
                 <span class="setting-name">UI scale</span>
@@ -692,7 +695,7 @@
               <div class="setting-hints"><span>Small</span><span>Default</span><span>Large</span></div>
             </div>
 
-            <div class="setting-item" id="setting-interface-font">
+            <div class="setting-item gs-retired" id="setting-interface-font">
               <div class="setting-item-top">
                 <span class="setting-name">Interface font</span>
               </div>
@@ -728,6 +731,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Window</div>
+                <div class="m3-group">
             <div class="setting-item" id="setting-hide-titlebar-row">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -738,6 +744,19 @@
               </div>
             </div>
 
+            <div class="setting-item">
+              <div class="setting-item-top" style="align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="setting-name">No-Hand cursor</span>
+                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Replaces the hand and grab cursors with the normal arrow</span>
+                </div>
+                <button class="effect-switch-btn active" id="btn-no-hand-cursor"><span class="thumb"></span></button>
+              </div>
+            </div>
+
+                </div>
+                <div class="settings-group-title gs-header">Search</div>
+                <div class="m3-group">
             <div class="setting-item" id="setting-search-pos-row">
               <div class="setting-item-top">
                 <span class="setting-name">Position of searchbar</span>
@@ -802,7 +821,7 @@
               </div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top">
                 <span class="setting-name">Corner radius</span>
                 <span class="setting-value" id="val-corner-radius" data-i18n>Default</span>
@@ -811,7 +830,7 @@
               <div class="setting-hints"><span>Sharp</span><span>16px</span><span>Round</span></div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <span class="setting-name">Interface opacity</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -823,7 +842,7 @@
               <div class="setting-hints"><span>20%</span><span>Default</span><span>100%</span></div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <span class="setting-name">Glass blur</span>
@@ -833,7 +852,7 @@
               </div>
             </div>
 
-            <div class="setting-item" id="setting-glass-strength">
+            <div class="setting-item gs-retired" id="setting-glass-strength">
               <div class="setting-item-top">
                 <span class="setting-name">Glass blur strength</span>
                 <span class="setting-value" id="val-glass-blur">16px</span>
@@ -842,7 +861,7 @@
               <div class="setting-hints"><span>4px</span><span>Default</span><span>40px</span></div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <span class="setting-name">Text opacity</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -854,16 +873,10 @@
               <div class="setting-hints"><span>1%</span><span>Default</span><span>100%</span></div>
             </div>
 
-            <div class="setting-item">
-              <div class="setting-item-top" style="align-items: center;">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <span class="setting-name">No-Hand cursor</span>
-                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Replaces the hand and grab cursors with the normal arrow</span>
-                </div>
-                <button class="effect-switch-btn active" id="btn-no-hand-cursor"><span class="thumb"></span></button>
-              </div>
-            </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Visualizer</div>
+                <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
                 <span class="setting-name">Show wave visualizer in bottom bar</span>
@@ -900,7 +913,7 @@
               </div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <span class="setting-name">Shaped cover in the bottom bar</span>
@@ -964,6 +977,23 @@
             </div>
 
             <div class="setting-item">
+              <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="setting-name">Visualizer frame rate</span>
+                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Caps the visualizer and progress animation. Lower uses less CPU and GPU</span>
+                </div>
+                <div class="theme-mode-toggle">
+                  <button class="fps-cap-btn" data-fps-cap="0">Native</button>
+                  <button class="fps-cap-btn" data-fps-cap="60">60</button>
+                  <button class="fps-cap-btn" data-fps-cap="30">30</button>
+                </div>
+              </div>
+            </div>
+
+                </div>
+                <div class="settings-group-title gs-header">Performance</div>
+                <div class="m3-group">
+            <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <span class="setting-name">Performance mode</span>
@@ -996,8 +1026,8 @@
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <span class="setting-name">Blur effects</span>
-                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Frosted glass and blurred artwork. Off saves GPU memory</span>
+                  <span class="setting-name">Glass effects</span>
+                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Bars, menus and sheets blur what is behind them. Off uses solid surfaces and saves GPU memory</span>
                 </div>
                 <button class="effect-switch-btn active" data-adv="blur_fx"><span class="thumb"></span></button>
               </div>
@@ -1013,19 +1043,6 @@
               </div>
             </div>
 
-            <div class="setting-item">
-              <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <span class="setting-name">Visualizer frame rate</span>
-                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Caps the visualizer and progress animation. Lower uses less CPU and GPU</span>
-                </div>
-                <div class="theme-mode-toggle">
-                  <button class="fps-cap-btn" data-fps-cap="0">Native</button>
-                  <button class="fps-cap-btn" data-fps-cap="60">60</button>
-                  <button class="fps-cap-btn" data-fps-cap="30">30</button>
-                </div>
-              </div>
-            </div>
 
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
@@ -1045,6 +1062,7 @@
               </div>
 
               <div class="settings-section" data-cat="theme">
+                <div class="settings-group-title gs-header">Appearance</div>
                 <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top">
@@ -1057,7 +1075,7 @@
               </div>
             </div>
 
-            <div class="setting-item" id="setting-palette-style">
+            <div class="setting-item gs-retired" id="setting-palette-style">
               <div class="setting-item-top">
                 <span class="setting-name">Palette style</span>
               </div>
@@ -1083,19 +1101,24 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Accent color</div>
+                <div class="m3-group">
             <div class="setting-item theme-palette-setting">
               <div class="setting-item-top">
                 <span class="setting-name">Accent color</span>
                 <span class="setting-value" id="settings-theme-color-label">Custom</span>
               </div>
               <div class="theme-palette-picker">
-                <button type="button" class="theme-swatch" data-color="#B69DF8" style="background: #B69DF8;" title="Purple"></button>
-                <button type="button" class="theme-swatch" data-color="#7AA7FF" style="background: #7AA7FF;" title="Blue"></button>
-                <button type="button" class="theme-swatch" data-color="#56C5C5" style="background: #56C5C5;" title="Teal"></button>
-                <button type="button" class="theme-swatch" data-color="#6DD58C" style="background: #6DD58C;" title="Green"></button>
-                <button type="button" class="theme-swatch" data-color="#F5B83D" style="background: #F5B83D;" title="Amber"></button>
-                <button type="button" class="theme-swatch" data-color="#F28B82" style="background: #F28B82;" title="Red"></button>
-                <button type="button" class="theme-swatch" data-color="#F48FB1" style="background: #F48FB1;" title="Pink"></button>
+                <button type="button" class="theme-swatch" data-color="#0A84FF" style="background: #0A84FF;" title="Blue" aria-label="Blue"></button>
+                <button type="button" class="theme-swatch" data-color="#BF5AF2" style="background: #BF5AF2;" title="Purple" aria-label="Purple"></button>
+                <button type="button" class="theme-swatch" data-color="#FF375F" style="background: #FF375F;" title="Pink" aria-label="Pink"></button>
+                <button type="button" class="theme-swatch" data-color="#FF453A" style="background: #FF453A;" title="Red" aria-label="Red"></button>
+                <button type="button" class="theme-swatch" data-color="#FF9F0A" style="background: #FF9F0A;" title="Orange" aria-label="Orange"></button>
+                <button type="button" class="theme-swatch" data-color="#FFD60A" style="background: #FFD60A;" title="Yellow" aria-label="Yellow"></button>
+                <button type="button" class="theme-swatch" data-color="#30D158" style="background: #30D158;" title="Green" aria-label="Green"></button>
+                <button type="button" class="theme-swatch" data-color="#40C8E0" style="background: #40C8E0;" title="Teal" aria-label="Teal"></button>
+                <button type="button" class="theme-swatch" data-color="#8E8E93" style="background: #8E8E93;" title="Graphite" aria-label="Graphite"></button>
                 <label class="theme-custom-color-btn" title="Choose custom color">
                   <input type="color" id="settings-custom-color-input" value="#6750A4">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -1103,7 +1126,7 @@
               </div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top">
                 <span class="setting-name">Hue</span>
                 <span class="setting-value" id="val-theme-hue">270°</span>
@@ -1111,7 +1134,7 @@
               <div class="sl hue-seg" id="hue-seg"><div class="hue-seg-track"></div><input type="range" class="theme-hue-slider" id="slider-theme-hue" min="0" max="360" step="1" value="270"></div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top">
                 <span class="setting-name">Intensity</span>
                 <span class="setting-value" id="val-theme-intensity">0%</span>
@@ -1120,7 +1143,7 @@
               <div class="setting-hints"><span>Gray</span><span>Soft</span><span>Vivid</span></div>
             </div>
 
-            <div class="setting-item" id="setting-intensity-bg-row">
+            <div class="setting-item gs-retired" id="setting-intensity-bg-row">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <span class="setting-name" data-i18n>Apply intensity to background</span>
@@ -1130,7 +1153,7 @@
               </div>
             </div>
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top">
                 <span class="setting-name">Brightness</span>
                 <span class="setting-value" id="val-theme-brightness">50%</span>
@@ -1140,7 +1163,7 @@
             </div>
 
 
-            <div class="setting-item">
+            <div class="setting-item gs-retired">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <span class="setting-name">Highlight buttons</span>
@@ -1221,6 +1244,7 @@
 
 
               <div class="settings-section" data-cat="tracks">
+                <div class="settings-group-title gs-header">Library</div>
                 <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
@@ -1256,6 +1280,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Playback</div>
+                <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
                 <span class="setting-name">Smooth preset transitions</span>
@@ -1270,30 +1297,6 @@
                   <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Automatically save High Quality, effects and the active preset</span>
                 </div>
                 <button class="effect-switch-btn" id="btn-persist-sound-settings"><span class="thumb"></span></button>
-              </div>
-            </div>
-
-            <div class="setting-item">
-              <div class="setting-item-top" style="align-items: center;">
-                <span class="setting-name">Wavy progress bar</span>
-                <button class="effect-switch-btn active" id="btn-wavy-progress"><span class="thumb"></span></button>
-              </div>
-            </div>
-
-            <div class="setting-item">
-              <div class="setting-item-top" style="align-items: center;">
-                <span class="setting-name">Progress bar knob</span>
-                <button class="effect-switch-btn active" id="btn-progress-knob"><span class="thumb"></span></button>
-              </div>
-            </div>
-
-            <div class="setting-item">
-              <div class="setting-item-top" style="align-items: center;">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <span class="setting-name">Progress bar background</span>
-                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Show the uncompleted track rail in the playbar</span>
-                </div>
-                <button class="effect-switch-btn active" id="btn-progress-bg"><span class="thumb"></span></button>
               </div>
             </div>
 
@@ -1318,6 +1321,38 @@
               <div class="setting-hints"><span>5s</span><span>17s</span><span>30s</span></div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Progress bar</div>
+                <div class="m3-group">
+            <div class="setting-item gs-retired">
+              <div class="setting-item-top" style="align-items: center;">
+                <span class="setting-name">Wavy progress bar</span>
+                <button class="effect-switch-btn active" id="btn-wavy-progress"><span class="thumb"></span></button>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-item-top" style="align-items: center;">
+                <span class="setting-name">Progress bar knob</span>
+                <button class="effect-switch-btn active" id="btn-progress-knob"><span class="thumb"></span></button>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-item-top" style="align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="setting-name">Progress bar background</span>
+                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Show the uncompleted track rail in the playbar</span>
+                </div>
+                <button class="effect-switch-btn active" id="btn-progress-bg"><span class="thumb"></span></button>
+              </div>
+            </div>
+
+
+
+                </div>
+                <div class="settings-group-title gs-header">Lyrics translation</div>
+                <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
                 <span class="setting-name">Lyrics translation</span>
@@ -1361,6 +1396,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Lyrics</div>
+                <div class="m3-group">
             <div class="setting-item" id="setting-lyrics-ease-row">
               <div class="setting-item-top">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1465,7 +1503,7 @@
 
           <div class="settings-section" data-cat="integrations">
             <span class="settings-section-title">Integrations</span>
-
+            <div class="settings-group-title gs-header">Scrobbling</div>
             <div class="m3-group">
 
             <div class="setting-item" id="card-lastfm">
@@ -1488,6 +1526,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Import playlists</div>
+                <div class="m3-group">
             <div class="setting-item" id="card-spotify-import">
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1585,12 +1626,13 @@
               </div>
             </div>
             </div>
+            <div class="settings-group-footer">Bring your playlists over from another app or from a file.</div>
           </div>
 
 
           <div class="settings-section" data-cat="storage">
             <span class="settings-section-title">Storage</span>
-
+            <div class="settings-group-title gs-header">On this device</div>
             <div class="m3-group">
             <div class="setting-item clickable clear-cache-row" id="btn-open-clear-cache">
               <div class="setting-item-top" style="cursor: pointer; align-items: center;">
@@ -1639,6 +1681,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Folders</div>
+                <div class="m3-group">
             <div class="setting-item" id="music-folder-item">
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 12px;">
@@ -1672,6 +1717,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Playlists and backups</div>
+                <div class="m3-group">
             <div class="setting-item" id="export-all-playlists-item">
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
@@ -1746,6 +1794,7 @@
             <div class="adv-collapsible-wrapper" id="adv-collapsible-wrapper">
               <div class="adv-collapsible-inner">
                 <div class="adv-items-list">
+                  <div class="settings-group-title gs-header">Window</div>
                   <div class="m3-group">
                   <div class="setting-item">
                     <div class="setting-item-top" style="align-items: center;">
@@ -1770,6 +1819,9 @@
                   <div class="setting-item">
                   </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Lyrics</div>
+                <div class="m3-group">
                   <div class="setting-item">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1803,7 +1855,7 @@
                   <div class="setting-item">
                   </div>
 
-                  <div class="setting-item">
+                  <div class="setting-item gs-retired">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="setting-name">Mesh follows theme intensity</span>
@@ -1813,7 +1865,7 @@
                     </div>
                   </div>
 
-                  <div class="setting-item">
+                  <div class="setting-item gs-retired">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="setting-name">Mesh color from current cover</span>
@@ -1823,7 +1875,7 @@
                     </div>
                   </div>
 
-                  <div class="setting-item">
+                  <div class="setting-item gs-retired">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="setting-name">Lower interface opacity for backgrounds</span>
@@ -1833,7 +1885,7 @@
                     </div>
                   </div>
 
-                  <div class="setting-item">
+                  <div class="setting-item gs-retired">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="setting-name">Clip effects to panels</span>
@@ -1843,6 +1895,9 @@
                     </div>
                   </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Home</div>
+                <div class="m3-group">
                   <div class="setting-item">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1907,9 +1962,12 @@
                         <span>Spotify</span>
                       </button>
                     </div>
-                    <div style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline); margin-top: 6px;">Muriel: the big carousel. Spotify: quick picks, Daily Mixes and what's trending, in rows.</div>
+                    <div class="setting-hint gs-row-note">Muriel: the big carousel. Spotify: quick picks, Daily Mixes and what's trending, in rows.</div>
                   </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Motion</div>
+                <div class="m3-group">
                   <div class="setting-item">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1955,6 +2013,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Help</div>
+                <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center; justify-content: space-between;">
                 <span class="setting-name">Keyboard shortcuts</span>
@@ -1976,6 +2037,9 @@
               </div>
             </div>
 
+                </div>
+                <div class="settings-group-title gs-header">Legal</div>
+                <div class="m3-group">
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center; justify-content: space-between; gap: 12px;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -2517,23 +2581,23 @@
   </div>
 
   <div class="modal-backdrop hidden" id="delete-preset-modal">
-    <div class="dialog-card">
+    <div class="dialog-card gs-alert">
       <h3>Delete preset</h3>
       <p id="delete-preset-msg" style="margin: 0 0 16px; color: var(--md-sys-color-on-surface-variant); font-size: calc(14px * var(--font-scale, 1));">Delete this preset?</p>
       <div class="dialog-actions">
         <button class="btn-outline-pill" id="btn-cancel-delete-preset">Cancel</button>
-        <button class="btn-pill-primary" id="btn-confirm-delete-preset">Delete</button>
+        <button class="btn-pill-primary gs-destructive" id="btn-confirm-delete-preset">Delete</button>
       </div>
     </div>
   </div>
 
   <div class="modal-backdrop hidden" id="delete-playlist-modal">
-    <div class="dialog-card">
+    <div class="dialog-card gs-alert">
       <h3>Delete playlist</h3>
       <p id="delete-playlist-msg" style="margin: 0 0 16px; color: var(--md-sys-color-on-surface-variant); font-size: calc(14px * var(--font-scale, 1));">Delete this playlist?</p>
       <div class="dialog-actions">
         <button class="btn-outline-pill" id="btn-cancel-delete-playlist">Cancel</button>
-        <button class="btn-pill-primary" id="btn-confirm-delete-playlist">Delete</button>
+        <button class="btn-pill-primary gs-destructive" id="btn-confirm-delete-playlist">Delete</button>
       </div>
     </div>
   </div>
@@ -2912,12 +2976,12 @@
   </div>
 
   <div class="modal-backdrop hidden" id="clear-offline-modal">
-    <div class="dialog-card">
+    <div class="dialog-card gs-alert">
       <h3>Clear offline library</h3>
       <p style="margin: 0 0 16px; color: var(--md-sys-color-on-surface-variant); font-size: calc(14px * var(--font-scale, 1));">Delete all cached tracks from offline storage? They will need to be downloaded again when played.</p>
       <div class="dialog-actions">
         <button class="btn-outline-pill" id="btn-cancel-clear-offline">Cancel</button>
-        <button class="btn-pill-primary" id="btn-confirm-clear-offline">Delete all</button>
+        <button class="btn-pill-primary gs-destructive" id="btn-confirm-clear-offline">Delete all</button>
       </div>
     </div>
   </div>
@@ -3489,5 +3553,6 @@
   <script src="backup-core.js"></script>
   <script src="backup.js"></script>
   <script src="glass/shell.js"></script>
+  <script src="glass/settings.js"></script>
 </body>
 </html>

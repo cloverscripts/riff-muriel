@@ -207,11 +207,16 @@
     else if (act === 'edit' && p) { editing = p.id; adding = false; draft = null; render(); focusName(); }
     else if (act === 'cancel') { adding = false; editing = null; draft = null; render(); }
     else if (act === 'delete' && p) {
-      if (!confirm(I18n.Tf('Delete the profile "{0}"? Its playlists, favorites, history and settings are removed from this device. Devices it syncs with keep their copy.', p.name))) return;
-      if (P.remove(p.id)) toast(I18n.Tm('Deleted {0}', p.name));
-      render();
+      ask({ title: I18n.Tf('Delete the profile "{0}"?', p.name), message: I18n.T('Its playlists, favorites, history and settings are removed from this device. Devices it syncs with keep their copy.'), ok: I18n.T('Delete'), destructive: true },
+        I18n.Tf('Delete the profile "{0}"? Its playlists, favorites, history and settings are removed from this device. Devices it syncs with keep their copy.', p.name)).then((yes) => {
+        if (!yes) return;
+        if (P.remove(p.id)) toast(I18n.Tm('Deleted {0}', p.name));
+        render();
+      });
     }
   }
+  // Muriel Glass draws the question as an alert (glass/settings.js); the browser's confirm() otherwise
+  const ask = (o, plain) => (window.MurielGlass && window.MurielGlass.confirm ? window.MurielGlass.confirm(o) : Promise.resolve(confirm(plain)));
   function onSubmit(e) {
     e.preventDefault();
     const f = e.target.closest('.profile-form');
