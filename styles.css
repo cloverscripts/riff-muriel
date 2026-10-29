@@ -306,6 +306,12 @@ body.is-playing .shape-triangle {
   position: relative;
 }
 
+/* macOS shows its own traffic lights (main.js): no drawn window buttons, and room for the lights on the left */
+.platform-darwin #btn-minimize,
+.platform-darwin #btn-maximize,
+.platform-darwin #btn-close { display: none !important; }
+.platform-darwin body:not(.mini) .titlebar { padding-left: 84px; }
+
 .titlebar-drag {
   display: flex;
   align-items: center;

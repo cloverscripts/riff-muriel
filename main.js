@@ -226,8 +226,11 @@ function runGUI() {
                                    backgroundColor: firstRun ? '#8d5ef2' : '#000000',
                                    title: 'Muriel',
                                    icon: path.join(__dirname, 'assets', 'icon.png'),
-                                   frame: false,
-                                   titleBarStyle: 'hidden',
+                                   // macOS keeps its frame so the native traffic lights, rounded corners and shadow are
+                                   // used; Windows and Linux draw their own controls
+                                   ...(process.platform === 'darwin'
+                                     ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y: 13 } }
+                                     : { frame: false, titleBarStyle: 'hidden' }),
                                    show: false,
                                    useContentSize: true,
                                    webPreferences: {
@@ -341,6 +344,12 @@ function runGUI() {
 
     ipcMain.on('window-close', () => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    });
+
+    // macOS: the traffic lights hide with the titlebar (mini player, or "Hide titlebar" until it slides down)
+    ipcMain.on('set-window-buttons-visible', (e, visible) => {
+      if (process.platform !== 'darwin' || !mainWindow || mainWindow.isDestroyed()) return;
+      try { mainWindow.setWindowButtonVisibility(!!visible); } catch (_) {}
     });
 
     // Spotify's login page and Last.fm's approval page (lastfm.js)
@@ -755,6 +764,12 @@ function runGUI() {
         setupTray();
         createWindow();
         app.on('activate', () => {
+          // the Dock icon brings back a window that was closed to the tray
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            if (!mainWindow.isVisible()) mainWindow.show();
+            mainWindow.focus();
+            return;
+          }
           if (BrowserWindow.getAllWindows().length === 0) createWindow();
         });
       });
