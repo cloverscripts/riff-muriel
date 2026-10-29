@@ -1,4 +1,4 @@
-## Muriel 1.3.8
+## Muriel 1.3.9
 
 **Downloads**
 - **iPhone:** [ios-latest](https://github.com/cloverscripts/riff-muriel/releases/tag/ios-latest) (`Muriel.ipa`, install with SideStore, AltStore or Sideloadly). Needs iOS 16.2 or newer
@@ -9,7 +9,30 @@
 
 Or get it from the website: https://cloverscripts.github.io/riff-muriel/
 
+**New**
+- **Download a whole album** from its page, with progress; songs you already have are skipped. Thanks to Dandeleah!
+- **Sorting:** Albums (recent, title, artist, year), Playlists (custom, name, most songs) and Artists (recent, name, most played). Muriel remembers your choice.
+- **Better recommendations:** My Wave and the Daily Mixes now use YouTube Music radio and Last.fm similar songs, skip what you just heard, and tidy up video titles.
+- **Block artists and songs** from a song's menu or the artist page; they're skipped and kept out of mixes. Unblock in Settings → Tracks. Syncs between devices.
+- **Search filters:** All, Songs, Artists, Albums.
+- **Choose the sound output device** (computers, Settings → Tracks).
+- **Add a whole folder** of local music (computers).
+- **Yandex Music:** album and single-song links import now.
+- **Mac:** native window buttons, the Dock icon reopens Muriel, and songs start much faster.
+- Covers that won't load fall back to Apple Music artwork (computers).
+
 **Fixed**
+- **iPhone:** music resumes after another app's sound ends, and the lock screen / Control Center shows the right play state, progress and speed. (#26)
+- **Android:** the play/pause notification shows on Android 13 and newer; Muriel asks for notification permission once. (#25)
+- **Phones:** pressing play from outside the app after a pause works again. (#24)
+- **Windows taskbar:** the pinned icon opens Muriel, no duplicate icon, and the pin survives updates. Unpin the old icon once and pin Muriel again after updating. (#23)
+- **Songs cutting off early:** with Crossfade on, the song now fades out and plays to its end instead of skipping ahead. (#22)
+- **Android seek bar:** dragging with a finger works. (#21)
+- **Switching the app language back to English** works again. (#20)
+- **Windows:** first play no longer fails with a DOMException. (#17)
+- Reduce motion follows your system setting, and the accent color picker saves properly.
+
+**Fixed in 1.3.8**
 - **"Failed, retry or skip" when Retry would have worked:** a song you click no longer inherits a failed lookup of the next-song preparation, and an expired stream link isn't reused. Muriel also quietly tries once more with a fresh lookup before asking.
 - **Player bar visualizer ("Behind bar"):** the bars sit inside the player bar again instead of in a strip over the page, as a quiet backdrop that keeps the times and buttons readable. Turn it off under Settings → Interface → Visualizer.
 
