@@ -656,21 +656,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!('mediaSession' in navigator) || typeof navigator.mediaSession.setPositionState !== 'function') return;
     try {
       const audio = (state.secondaryAudio && !state.secondaryAudio.paused) ? state.secondaryAudio : el.nativeAudio;
-      let duration = (audio && Number.isFinite(audio.duration) && audio.duration > 0)
-        ? audio.duration
-        : (state.currentTrack && Number.isFinite(state.currentTrack.duration) && state.currentTrack.duration > 0 ? state.currentTrack.duration : 0);
-      let position = (audio && Number.isFinite(audio.currentTime) && audio.currentTime >= 0) ? audio.currentTime : 0;
-      let playbackRate = (audio && Number.isFinite(audio.playbackRate) && audio.playbackRate > 0) ? audio.playbackRate : 1.0;
-      if (duration > 0) {
-        if (position > duration) position = duration;
-        navigator.mediaSession.setPositionState({
-          duration,
-          playbackRate,
-          position
-        });
-      } else {
-        navigator.mediaSession.setPositionState();
-      }
+      const pos = window.MurielNowPlaying.positionState(audio, state.currentTrack && state.currentTrack.duration);
+      if (pos) navigator.mediaSession.setPositionState(pos);
+      else navigator.mediaSession.setPositionState();
     } catch (_) {}
   }
 
@@ -5911,6 +5899,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function pauseSmooth() {
     const curToken = ++smoothFadeToken;
     state.isPlaying = false;
+    // a pause someone asked for: not undone when another app's sound ends (mobile/audio-interruption.js)
+    state.pausedByUser = true;
     setTrackLoading(false);
     updatePlayPauseButton(false, false);
     document.body.classList.remove('is-playing');
@@ -5966,6 +5956,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function playSmooth() {
     const curToken = ++smoothFadeToken;
     state.isPlaying = true;
+    state.pausedByUser = false;
     document.body.classList.add('is-playing');
     updatePlayPauseButton(true, false);
     if (el.coverContainer && state.vfx.vinylSpin) el.coverContainer.classList.add('spinning');
@@ -6373,6 +6364,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (Math.abs(a.playbackRate - rate) > 0.001 || a.preservesPitch !== preservePitch) audioEngine.applySettings(a);
     };
     ['loadedmetadata', 'canplay', 'playing'].forEach(ev => el.nativeAudio.addEventListener(ev, keepPlaybackRate));
+
+    // The iPhone's Now Playing widget moves its progress bar on its own from the last position and rate it was
+    // given. Told only at play / pause, it kept the rate WebKit had reset to 1 before the song's speed was put
+    // back (a sped-up song's bar lagged), and a length that wasn't known yet (#26). Tell it again whenever any
+    // of them changes, and now and then while playing.
+    let positionSentAt = 0;
+    const sendPosition = () => { positionSentAt = Date.now(); updateMediaPositionState(); };
+    ['ratechange', 'durationchange', 'loadedmetadata', 'seeked', 'playing'].forEach(ev => el.nativeAudio.addEventListener(ev, sendPosition));
+    el.nativeAudio.addEventListener('timeupdate', () => {
+      if (!el.nativeAudio.paused && Date.now() - positionSentAt > 10000) sendPosition();
+    });
 
     el.nativeAudio.addEventListener('durationchange', () => {
       const audio = el.nativeAudio;

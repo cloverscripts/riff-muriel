@@ -69,5 +69,57 @@ class MurielBridgeViewController: CAPBridgeViewController {
     // plugins that live in the app itself (not in an npm package) are registered by hand
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(MurielLiveActivityPlugin())
+        bridge?.registerPluginInstance(MurielAudioSessionPlugin())
+    }
+}
+
+// Another app's sound (a call, Siri, a video) interrupting Muriel: the page (mobile/audio-interruption.js) is
+// told when it starts and when it ends, and whether iOS says to play again, so a song that was playing starts
+// again like it does in Spotify (#26). Paused in the background the app is suspended soon after; iOS wakes it
+// for the end of the interruption, and a short background task keeps it awake until the page has asked the
+// song to play again (or a lock screen play has arrived).
+@objc(MurielAudioSessionPlugin)
+public class MurielAudioSessionPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "MurielAudioSessionPlugin"
+    public let jsName = "MurielAudioSession"
+    public let pluginMethods: [CAPPluginMethod] = []
+    private var awake: UIBackgroundTaskIdentifier = .invalid
+    private var awakeEnd: DispatchWorkItem?
+
+    override public func load() {
+        NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
+            guard let self = self,
+                  let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+            switch type {
+            case .began:
+                self.notifyListeners("interruption", data: ["type": "began"])
+            case .ended:
+                let opts = AVAudioSession.InterruptionOptions(rawValue: note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+                self.stayAwake(seconds: 20)
+                self.notifyListeners("interruption", data: ["type": "ended", "shouldResume": opts.contains(.shouldResume)])
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    // once the song plays again iOS keeps the app running by itself; this only bridges the moment until then
+    private func stayAwake(seconds: Double) {
+        if awake == .invalid {
+            awake = UIApplication.shared.beginBackgroundTask(withName: "MurielInterruptionEnd") { [weak self] in self?.endAwake() }
+        }
+        awakeEnd?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.endAwake() }
+        awakeEnd = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    private func endAwake() {
+        awakeEnd?.cancel()
+        awakeEnd = nil
+        guard awake != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(awake)
+        awake = .invalid
     }
 }

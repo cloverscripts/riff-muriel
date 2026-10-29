@@ -233,4 +233,5 @@ window.electronAPI = electronAPI({ ready, port: PORT, fs, fileUrlFor });
 require('./live-activity')();
 require('./media-controls')();
 require('./background-audio')();
+require('./audio-interruption')();
 document.documentElement.classList.add('is-mobile');
