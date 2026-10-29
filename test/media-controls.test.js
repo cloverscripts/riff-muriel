@@ -77,7 +77,7 @@ test('island status survives a native side without it', async () => {
   assert.strictEqual(window.MurielIsland.enabled({}), false);
 });
 
-test('where the island is on by default, notifications are asked for once, after the battery question', async () => {
+test('notifications are asked for once, after the battery question, island or not (#25)', async () => {
   const off = { supported: true, vendor: 'vivo', defaultOn: true, notifications: false, promoted: true };
   const vivo = setup('android', { unrestricted: false, island: off });
   vivo.audio.dispatchEvent(new Event('playing'));
@@ -85,8 +85,15 @@ test('where the island is on by default, notifications are asked for once, after
   await tick();
   // never opens Settings by itself
   assert.deepStrictEqual(vivo.asked, ['allow', 'island {"settings":false}']);
-  // notifications already allowed, the island off by default, or Android older than 16: nothing to ask
-  for (const island of [{ ...off, notifications: true }, { ...off, defaultOn: false }, { ...off, supported: false }]) {
+  // the playback notification needs them too: also asked with the island off, or before Android 16
+  for (const island of [{ ...off, defaultOn: false }, { ...off, supported: false, defaultOn: false }]) {
+    const other = setup('android', { island });
+    other.audio.dispatchEvent(new Event('playing'));
+    await tick();
+    assert.deepStrictEqual(other.asked, ['island {"settings":false}']);
+  }
+  // notifications already allowed, or no answer from the phone: nothing to ask
+  for (const island of [{ ...off, notifications: true }, {}]) {
     const other = setup('android', { island });
     other.audio.dispatchEvent(new Event('playing'));
     await tick();
