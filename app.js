@@ -6922,7 +6922,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grid = document.getElementById('saved-albums-grid');
     if (!grid) return;
     updateAlbumsCount();
-    const albums = getSavedAlbums();
+    const albums = sortedLibrary('albums', getSavedAlbums());
     if (!albums.length) {
       grid.innerHTML = '<div class="empty-hint">No saved albums yet. Open an album and tap the heart to save it.</div>';
       return;
@@ -7010,6 +7010,78 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnDmLike) btnDmLike.addEventListener('click', () => rateDailyMix(true));
   if (btnDmDislike) btnDmDislike.addEventListener('click', () => rateDailyMix(false));
 
+  // ---- Download a whole album (#19): the playlist download (openDownloadAllModal) with the album's songs.
+  // Songs already on this device (downloaded, or in the offline cache) are left out; when that is all of them
+  // the button shows a check. While it runs the button counts the songs.
+  let albumDownload = null;
+  function renderAlbumDownloadButton() {
+    const btn = document.getElementById('btn-download-album');
+    if (!btn) return;
+    const d = albumDownload;
+    const items = d ? d.items : [];
+    const all = !!d && items.length > 0 && d.downloaded.length === items.length && d.downloaded.every(Boolean);
+    btn.disabled = !items.length;
+    btn.classList.toggle('is-done', all && !(d && d.busy));
+    btn.classList.toggle('is-busy', !!(d && d.busy));
+    const prog = btn.querySelector('.dl-album-progress');
+    if (prog) prog.textContent = d && d.busy ? d.progress : '';
+    btn.title = d && d.busy ? Tf('Downloading {0}', d.progress) : all ? T('Album downloaded') : T('Download album');
+    btn.setAttribute('aria-label', btn.title);
+  }
+  async function refreshAlbumDownloadState(d) {
+    if (!d || !state.serverPort) return;
+    try {
+      const res = await fetch(`http://127.0.0.1:${state.serverPort}/api/downloaded-status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tracks: d.items.map((t) => ({ title: t.title || '', artist: t.artist || '', id: String(t.id || '') })) }),
+      });
+      const data = await res.json();
+      if (albumDownload !== d || !data || !data.success || !Array.isArray(data.downloaded)) return;
+      d.downloaded = data.downloaded.map(Boolean);
+    } catch (e) {}
+    if (albumDownload === d) renderAlbumDownloadButton();
+  }
+  // items: the rows of the album page; sources: the album's own songs (found on YouTube when downloaded)
+  function setupAlbumDownload(album, items, sources, isMix) {
+    // a download of another album still running keeps its own object; this page gets a new one
+    const keep = (items || []).map((t, i) => ({ t, src: (sources || [])[i] })).filter((x) => x.t && x.t.platform !== 'local');
+    albumDownload = { album, items: keep.map((x) => x.t), sources: keep.map((x) => x.src), isMix, downloaded: [], busy: false, progress: '' };
+    renderAlbumDownloadButton();
+    refreshAlbumDownloadState(albumDownload);
+  }
+  function resetAlbumDownload() {
+    albumDownload = null;
+    renderAlbumDownloadButton();
+  }
+  const btnDownloadAlbum = document.getElementById('btn-download-album');
+  if (btnDownloadAlbum) {
+    btnDownloadAlbum.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const d = albumDownload;
+      if (!d || !d.items.length) return;
+      if (d.busy) { showToast(Tm('This album is downloading: {0}', d.progress), 'info'); return; }
+      const missing = d.items.filter((_, i) => !d.downloaded[i]);
+      if (!missing.length) { showToast(Tm('This album is already downloaded'), 'info'); return; }
+      const byId = new Map(d.items.map((t, i) => [t.id, d.sources[i]]));
+      if (missing.length < d.items.length) showToast(Tm('{0} of {1} songs are already downloaded: getting the rest', d.items.length - missing.length, d.items.length), 'info');
+      openDownloadAllModal({
+        name: d.album.title || 'Album',
+        tracks: missing,
+        resolve: d.isMix ? null : (t) => resolveAlbumTrack(d.album, byId.get(t.id)),
+        onProgress: (i, n) => {
+          d.busy = true;
+          d.progress = `${i + 1}/${n}`;
+          if (albumDownload === d) renderAlbumDownloadButton();
+        },
+        onDone: () => {
+          d.busy = false;
+          d.progress = '';
+          if (albumDownload === d) { renderAlbumDownloadButton(); refreshAlbumDownloadState(d); }
+        },
+      }, 'Download album');
+    });
+  }
+
   let currentAlbumRunId = 0;
 
   // An album from iTunes (its songs are found on YouTube when played), or a Daily Mix (album.type 'Daily Mix',
@@ -7023,6 +7095,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.previousView = state.currentView;
     switchView('album');
     showAlbumExtras(album);
+    resetAlbumDownload();
 
     const coverEl = document.getElementById('album-detail-cover');
     if (coverEl) {
@@ -7146,6 +7219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ...(t.isExplicit ? { isExplicit: true } : {})
       }));
       const playFrom = (idx) => (isMix ? playTrack(items[idx], items, idx, 'album') : playAlbumFrom(album, tracks, idx));
+      setupAlbumDownload(album, items, isMix ? items : tracks, isMix);
 
       const playAlbumBtn = document.getElementById('btn-play-album');
       if (playAlbumBtn) {
@@ -8452,6 +8526,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSortDropdown('favorites', el.favoritesSort);
   }
 
+  // Sorting the Albums tab, the playlists list and the Artists tab (#19); track-sort.js does the sorting.
+  // Kept per view in localStorage. (var and function declarations: the lists can render before this line runs)
+  var LIBRARY_SORT_KEYS = { albums: 'muriel_albums_sort', playlists: 'muriel_playlists_sort', artists: 'muriel_artists_sort' };
+  function getLibrarySort(kind) {
+    let v = null;
+    try { v = localStorage.getItem((LIBRARY_SORT_KEYS || {})[kind] || ''); } catch (e) {}
+    return librarySortMode(kind, v);
+  }
+  function sortedLibrary(kind, items) {
+    return sortLibrary(kind, items, getLibrarySort(kind), kind === 'artists' ? { plays: (a) => artistPlays(a.name) } : {});
+  }
+  ['albums', 'playlists', 'artists'].forEach((kind) => {
+    const sel = document.getElementById(`${kind}-sort`);
+    if (!sel) return;
+    sel.value = getLibrarySort(kind);
+    sel.addEventListener('change', () => {
+      try { localStorage.setItem(LIBRARY_SORT_KEYS[kind], librarySortMode(kind, sel.value)); } catch (e) {}
+      syncSortDropdown(kind);
+      if (kind === 'albums') renderSavedAlbums();
+      else if (kind === 'artists') renderArtistsTab();
+      else renderPlaylistsList();
+    });
+    setupSortDropdown(kind, sel);
+  });
+
   function renderHistoryView() {
     if (el.historyTracksList) renderTracks(el.historyTracksList, state.history, 'history');
   }
@@ -8864,7 +8963,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.playlistsList.appendChild(emptyMsg);
       return;
     }
-    state.playlists.forEach(pl => {
+    sortedLibrary('playlists', state.playlists).forEach(pl => {
       const item = document.createElement('div');
       item.className = 'playlist-item';
       item.dataset.playlistId = pl.id;
@@ -9151,7 +9250,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [moved] = state.playlists.splice(fromIdx, 1);
       state.playlists.splice(toIdx, 0, moved);
       localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
-    }
+    },
+    // dragging moves playlists in the custom order: not while the list shows another order
+    isFilterActive: () => getLibrarySort('playlists') !== 'custom'
   });
 
   initListReordering({
@@ -15571,7 +15672,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     trackToDownload = null;
-    downloadBatch = { name: playlist.name || 'Playlist', tracks };
+    downloadBatch = { name: playlist.name || 'Playlist', tracks, resolve: playlist.resolve, onProgress: playlist.onProgress, onDone: playlist.onDone };
     el.downloadModal.classList.add('batch-mode');
     showDownloadPane('download');
     const modalTitle = document.getElementById('download-modal-title');
@@ -15753,7 +15854,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (el.btnConfirmDownload) {
     el.btnConfirmDownload.addEventListener('click', async () => {
       if (downloadBatch) {
-        const tracks = downloadBatch.tracks;
+        const batch = downloadBatch;
+        const tracks = batch.tracks;
         el.btnConfirmDownload.disabled = true;
         let done = 0;
         let failed = 0;
@@ -15765,8 +15867,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (batchAbort.signal.aborted) break;
           const t = tracks[i];
           if (el.downloadBtnText) el.downloadBtnText.textContent = `Downloading ${i + 1}/${tracks.length}`;
+          if (typeof batch.onProgress === 'function') batch.onProgress(i, tracks.length);
           try {
-            const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(t.url || '')}&id=${encodeURIComponent(t.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}`;
+            // an album's songs are found on YouTube first (the file keeps the album's title and artist)
+            let src = t;
+            if (typeof batch.resolve === 'function') {
+              const found = await batch.resolve(t).catch(() => null);
+              if (batchAbort.signal.aborted) break;
+              if (found && found.url) src = { ...t, url: found.url, id: found.id || t.id };
+            }
+            const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(src.url || '')}&id=${encodeURIComponent(src.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}`;
             const res = await fetch(downloadUrl, { signal: batchAbort.signal });
             const text = await res.text();
             let data;
@@ -15786,6 +15896,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         el.btnConfirmDownload.disabled = false;
         if (downloadAbort === batchAbort) downloadAbort = null;
+        if (typeof batch.onDone === 'function') batch.onDone(done, tracks.length);
         // on phones the server answers with the app's internal path (/data/Downloads); name the real folder
         if (isPhoneApp && lastDir) {
           try { lastDir = (await window.electronAPI.getDownloadDir()).dir || lastDir; } catch (e) {}
@@ -16467,7 +16578,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newTracks = data.tracks.filter(t => {
           const cid = getTrackCanonicalId(t);
           const nkey = getTrackNormalizedKey(t.artist, t.title);
-          return !existingIds.has(cid) && !existingKeys.has(nkey);
+          return !existingIds.has(cid) && !existingKeys.has(nkey) && !isBlocked(t);
         });
         if (newTracks.length > 0) {
           state.queue.push(...newTracks);
@@ -17007,7 +17118,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       section('Your genres').appendChild(chips);
     }
-    for (const sec of data.sections || []) {
+    // blocked artists and songs stay out of For you; so do the songs you played just now
+    const blockedArtists = getBlocks().artists;
+    const recentKeys = new Set((state.history || []).slice(0, 30).map(t => getTrackNormalizedKey(t.artist, t.title)));
+    for (const raw of data.sections || []) {
+      const sec = raw.type === 'artists'
+        ? { ...raw, items: (raw.items || []).filter(a => a && !Lib.isArtistBlocked(blockedArtists, a.name)) }
+        : { ...raw, tracks: (raw.tracks || []).filter(t => t && !isBlocked(t) && !recentKeys.has(getTrackNormalizedKey(t.artist, t.title))) };
+      if (!(sec.items || sec.tracks || []).length) continue;
       const row = document.createElement('div');
       row.className = 'fy-row';
       if (sec.type === 'artists') {
@@ -17186,8 +17304,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
           const data = await res.json();
           // a mix of a handful of songs is not much of a mix
-          if (data && data.success && Array.isArray(data.tracks) && data.tracks.length >= 8) {
-            mixes.push({ id: plan.id, title: `Daily Mix ${mixes.length + 1}`, artists: plan.artists, tracks: data.tracks });
+          const mixTracks = data && data.success && Array.isArray(data.tracks) ? data.tracks.filter(t => !isBlocked(t)) : [];
+          if (mixTracks.length >= 8) {
+            mixes.push({ id: plan.id, title: `Daily Mix ${mixes.length + 1}`, artists: plan.artists, tracks: mixTracks });
             try { localStorage.setItem(DAILY_MIXES_KEY, JSON.stringify({ day, mixes })); } catch (e) {}
             renderMadeForYou();
           }
@@ -17408,7 +17527,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       grid.innerHTML = `<div class="empty-hint">${escapeHtml(T('No artists yet. Open an artist and tap Follow to see them here.'))}</div>`;
       return;
     }
-    list.forEach((a) => grid.appendChild(followedArtistCard(a)));
+    sortedLibrary('artists', list).forEach((a) => grid.appendChild(followedArtistCard(a)));
     if (state.serverPort) fetchFollowedMeta(list);
   }
   const btnShowArtists = document.getElementById('btn-show-artists');
@@ -17584,7 +17703,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return false;
       }
 
-      myWaveCurrentTracks = uniqueTracks;
+      // blocked artists and songs never make it into My Wave (the server leaves them out too; this is the safety net)
+      myWaveCurrentTracks = uniqueTracks.filter(t => !isBlocked(t));
+      if (!myWaveCurrentTracks.length) myWaveCurrentTracks = uniqueTracks;
       currentWaveFocusedIndex = 0;
       if (spHomeReady && isSpotifyHome()) renderMadeForYou();
       if (homeMode === 'wave') {

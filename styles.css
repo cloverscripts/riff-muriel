@@ -8642,6 +8642,15 @@ body.hide-artists-tab #nav-artists { display: none !important; }
 .album-actions #btn-save-album { margin-top: 16px; width: 44px; height: 44px; }
 #btn-save-album.active { color: var(--md-sys-color-primary); }
 #btn-save-album[hidden] { display: none !important; }
+/* Download album (#19): a check once every song is on this device, a song count while it downloads */
+.album-actions #btn-download-album { margin-top: 16px; width: 44px; height: 44px; position: relative; }
+#btn-download-album .dl-album-done, #btn-download-album .dl-album-progress { display: none; }
+#btn-download-album.is-done .dl-album-icon { display: none; }
+#btn-download-album.is-done .dl-album-done { display: block; }
+#btn-download-album.is-done { color: var(--md-sys-color-primary); }
+#btn-download-album.is-busy { width: auto; min-width: 44px; padding: 0 12px; }
+#btn-download-album.is-busy .dl-album-icon { display: none; }
+#btn-download-album.is-busy .dl-album-progress { display: inline; font-size: calc(12px * var(--font-scale, 1)); font-weight: 600; font-variant-numeric: tabular-nums; }
 #album-detail-artist.is-static { cursor: default; color: var(--md-sys-color-on-surface-variant); font-size: 15px; font-weight: 500; }
 #album-detail-artist.is-static:hover { text-decoration: none; opacity: 1; }
 .album-grid-cover { width: 100%; height: 100%; border-radius: 20px; overflow: hidden; gap: 3px; padding: 3px; background: var(--md-sys-color-surface-container); }
@@ -8658,6 +8667,14 @@ body.hide-artists-tab #nav-artists { display: none !important; }
 /* the Favorites header hides its title block (a div); the sort menu is a div too, at the right edge */
 #view-favorites .view-header > div.sort-dropdown { display: block !important; }
 #favorites-sort-dropdown .m3-dropdown-menu { left: auto; right: 0; }
+/* Albums and Artists tabs, and the playlists list in the drawer (#19) */
+#albums-sort-dropdown .m3-dropdown-menu, #artists-sort-dropdown .m3-dropdown-menu { left: auto; right: 0; }
+#view-albums .view-header, #view-artists .view-header { gap: 12px; }
+.playlists-sort-row { padding: 0 4px 8px; }
+.playlists-sort-row .sort-dropdown { width: 100%; min-width: 0; }
+.playlists-sort-row .sort-dropdown .m3-dropdown-trigger { background: transparent; padding: 6px 10px; font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-on-surface-variant); }
+.playlists-sort-row .sort-dropdown .m3-dropdown-menu { min-width: 100%; }
+#drawer-section-playlists:has(.playlists-empty-note) .playlists-sort-row { display: none; }
 /* the playlist header clips its glow; an open menu has to reach past it */
 .playlist-detail-header:has(.sort-dropdown.open) { overflow: visible !important; z-index: 30; }
 .playlist-detail-header:has(.sort-dropdown.open) > .hero-fx { clip-path: inset(0 round 28px); }

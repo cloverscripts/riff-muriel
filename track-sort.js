@@ -59,6 +59,45 @@ function backfillAddedAt(tracks, newestFirst) {
   return changed ? list : tracks;
 }
 
+// Library pages (#19): the Albums tab, the playlists list and the Artists tab. 'custom' is the stored order
+// (saved / followed newest first, playlists in the order they were dragged to). Ties keep that order.
+const LIBRARY_SORT_MODES = {
+  albums: ['custom', 'title-asc', 'artist-asc', 'year-desc'],
+  playlists: ['custom', 'name-asc', 'name-desc', 'size-desc'],
+  artists: ['custom', 'name-asc', 'plays-desc'],
+};
+
+function librarySortMode(kind, mode) {
+  const modes = LIBRARY_SORT_MODES[kind] || ['custom'];
+  return modes.includes(mode) ? mode : 'custom';
+}
+
+// plays: (item) => number, for 'plays-desc' (the app counts them from the listening history)
+function sortLibrary(kind, items, mode, { plays } = {}) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  const m = librarySortMode(kind, mode);
+  if (m === 'custom') return list;
+  const indexed = list.map((item, i) => ({ item, i }));
+  const tie = (a, b) => a.i - b.i;
+  let cmp;
+  if (m === 'title-asc') cmp = (a, b) => compareText(a.item, b.item, 'title') || compareText(a.item, b.item, 'artist');
+  else if (m === 'artist-asc') cmp = (a, b) => compareText(a.item, b.item, 'artist') || compareText(a.item, b.item, 'title');
+  else if (m === 'year-desc') {
+    const year = (x) => { const y = parseInt(String((x && x.year) || ''), 10); return Number.isFinite(y) ? y : -Infinity; };
+    cmp = (a, b) => year(b.item) - year(a.item) || compareText(a.item, b.item, 'title');
+  } else if (m === 'name-asc') cmp = (a, b) => compareText(a.item, b.item, 'name');
+  else if (m === 'name-desc') cmp = (a, b) => compareTextDesc(a.item, b.item, 'name');
+  else if (m === 'size-desc') {
+    const size = (x) => (x && Array.isArray(x.tracks) ? x.tracks.length : 0);
+    cmp = (a, b) => size(b.item) - size(a.item) || compareText(a.item, b.item, 'name');
+  } else if (m === 'plays-desc') {
+    const count = typeof plays === 'function' ? plays : () => 0;
+    const n = new Map(indexed.map((e) => [e, Number(count(e.item)) || 0]));
+    cmp = (a, b) => n.get(b) - n.get(a) || compareText(a.item, b.item, 'name');
+  }
+  return indexed.sort((a, b) => cmp(a, b) || tie(a, b)).map((e) => e.item);
+}
+
 // Favourites (#10): the same song reaches the heart from several places with different ids: an album row has an
 // id made from the album ("<albumId>_1_3", no platform), the player bar the YouTube video it resolved to, a
 // YouTube Music search 'ytmusic' or no platform at all. favoriteTrackKey() makes the id comparable; isSameSong() also
@@ -129,4 +168,4 @@ function dedupeFavoriteTracks(tracks) {
   return out.length === tracks.length ? tracks : out;
 }
 
-if (typeof module !== 'undefined') module.exports = { TRACK_SORT_MODES, sortTracks, backfillAddedAt, favoriteTrackKey, isSameSong, dedupeFavoriteTracks };
+if (typeof module !== 'undefined') module.exports = { TRACK_SORT_MODES, LIBRARY_SORT_MODES, librarySortMode, sortLibrary, sortTracks, backfillAddedAt, favoriteTrackKey, isSameSong, dedupeFavoriteTracks };
