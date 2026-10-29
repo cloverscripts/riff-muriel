@@ -2245,6 +2245,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const audioEngine = new window.MurielAudioEngine();
   window.audioEngine = audioEngine;
+  // Paused on a phone with the app in the background, the context is left running: a resume() there may not
+  // settle until the app is opened again, so play from the lock screen or the notification stayed silent (#24)
+  audioEngine.keepRunning = () => !!(document.hidden && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   let hlsInstance = null;
   animationFrameId = null;
 
@@ -5897,7 +5900,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initAudioContext();
     if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
-      await audioEngine.ctx.resume().catch(() => {});
+      // in a backgrounded WebView resume() can hang until the app is opened; don't let it hold play() back (#24).
+      // The 'play' / 'playing' handlers ask the context to resume again.
+      await Promise.race([audioEngine.ctx.resume().catch(() => {}), new Promise((r) => setTimeout(r, 400))]);
     }
     if (curToken !== smoothFadeToken) return;
 
