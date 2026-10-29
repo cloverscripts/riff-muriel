@@ -206,6 +206,15 @@
         </div>
 
         <div class="rail-drawer-section" id="drawer-section-playlists">
+          <div class="playlists-sort-row"><select class="pill-select" id="playlists-sort" title="Sort playlists" aria-label="Sort playlists" hidden><option value="custom">Custom order</option><option value="name-asc">Name (A-Z)</option><option value="name-desc">Name (Z-A)</option><option value="size-desc">Most songs</option></select>
+          <div class="m3-dropdown sort-dropdown" id="playlists-sort-dropdown">
+            <button class="m3-dropdown-trigger" id="playlists-sort-trigger" type="button" title="Sort playlists" aria-label="Sort playlists" aria-haspopup="listbox">
+              <svg class="sort-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="7" y1="12" x2="17" y2="12"></line><line x1="10" y1="18" x2="14" y2="18"></line></svg>
+              <span id="playlists-sort-label">Custom order</span>
+              <svg class="m3-dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="m3-dropdown-menu" id="playlists-sort-menu" role="listbox"></div>
+          </div></div>
           <div class="playlists-list" id="playlists-list"></div>
         </div>
       </div>
@@ -348,6 +357,15 @@
             <h2>Albums</h2>
             <span class="view-subtitle" id="albums-subtitle">0 albums saved</span>
           </div>
+          <select class="pill-select" id="albums-sort" title="Sort albums" aria-label="Sort albums" hidden><option value="custom">Recently saved</option><option value="title-asc">Title (A-Z)</option><option value="artist-asc">Artist (A-Z)</option><option value="year-desc">Year (newest)</option></select>
+          <div class="m3-dropdown sort-dropdown" id="albums-sort-dropdown">
+            <button class="m3-dropdown-trigger" id="albums-sort-trigger" type="button" title="Sort albums" aria-label="Sort albums" aria-haspopup="listbox">
+              <svg class="sort-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="7" y1="12" x2="17" y2="12"></line><line x1="10" y1="18" x2="14" y2="18"></line></svg>
+              <span id="albums-sort-label">Recently saved</span>
+              <svg class="m3-dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="m3-dropdown-menu" id="albums-sort-menu" role="listbox"></div>
+          </div>
         </div>
         <div class="saved-albums-grid" id="saved-albums-grid"></div>
       </section>
@@ -357,6 +375,15 @@
           <div>
             <h2>Artists</h2>
             <span class="view-subtitle" id="artists-subtitle">0 artists followed</span>
+          </div>
+          <select class="pill-select" id="artists-sort" title="Sort artists" aria-label="Sort artists" hidden><option value="custom">Recently followed</option><option value="name-asc">Name (A-Z)</option><option value="plays-desc">Most played</option></select>
+          <div class="m3-dropdown sort-dropdown" id="artists-sort-dropdown">
+            <button class="m3-dropdown-trigger" id="artists-sort-trigger" type="button" title="Sort artists" aria-label="Sort artists" aria-haspopup="listbox">
+              <svg class="sort-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="7" y1="12" x2="17" y2="12"></line><line x1="10" y1="18" x2="14" y2="18"></line></svg>
+              <span id="artists-sort-label">Recently followed</span>
+              <svg class="m3-dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="m3-dropdown-menu" id="artists-sort-menu" role="listbox"></div>
           </div>
         </div>
         <div class="followed-artists-grid" id="followed-artists-grid"></div>

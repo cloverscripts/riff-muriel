@@ -6920,7 +6920,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grid = document.getElementById('saved-albums-grid');
     if (!grid) return;
     updateAlbumsCount();
-    const albums = getSavedAlbums();
+    const albums = sortedLibrary('albums', getSavedAlbums());
     if (!albums.length) {
       grid.innerHTML = '<div class="empty-hint">No saved albums yet. Open an album and tap the heart to save it.</div>';
       return;
@@ -8450,6 +8450,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSortDropdown('favorites', el.favoritesSort);
   }
 
+  // Sorting the Albums tab, the playlists list and the Artists tab (#19); track-sort.js does the sorting.
+  // Kept per view in localStorage. (var and function declarations: the lists can render before this line runs)
+  var LIBRARY_SORT_KEYS = { albums: 'muriel_albums_sort', playlists: 'muriel_playlists_sort', artists: 'muriel_artists_sort' };
+  function getLibrarySort(kind) {
+    let v = null;
+    try { v = localStorage.getItem((LIBRARY_SORT_KEYS || {})[kind] || ''); } catch (e) {}
+    return librarySortMode(kind, v);
+  }
+  function sortedLibrary(kind, items) {
+    return sortLibrary(kind, items, getLibrarySort(kind), kind === 'artists' ? { plays: (a) => artistPlays(a.name) } : {});
+  }
+  ['albums', 'playlists', 'artists'].forEach((kind) => {
+    const sel = document.getElementById(`${kind}-sort`);
+    if (!sel) return;
+    sel.value = getLibrarySort(kind);
+    sel.addEventListener('change', () => {
+      try { localStorage.setItem(LIBRARY_SORT_KEYS[kind], librarySortMode(kind, sel.value)); } catch (e) {}
+      if (kind === 'albums') renderSavedAlbums();
+      else if (kind === 'artists') renderArtistsTab();
+      else renderPlaylistsList();
+    });
+    setupSortDropdown(kind, sel);
+  });
+
   function renderHistoryView() {
     if (el.historyTracksList) renderTracks(el.historyTracksList, state.history, 'history');
   }
@@ -8862,7 +8886,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.playlistsList.appendChild(emptyMsg);
       return;
     }
-    state.playlists.forEach(pl => {
+    sortedLibrary('playlists', state.playlists).forEach(pl => {
       const item = document.createElement('div');
       item.className = 'playlist-item';
       item.dataset.playlistId = pl.id;
@@ -9149,7 +9173,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [moved] = state.playlists.splice(fromIdx, 1);
       state.playlists.splice(toIdx, 0, moved);
       localStorage.setItem('devsize_playlists', JSON.stringify(state.playlists));
-    }
+    },
+    // dragging moves playlists in the custom order: not while the list shows another order
+    isFilterActive: () => getLibrarySort('playlists') !== 'custom'
   });
 
   initListReordering({
@@ -17406,7 +17432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       grid.innerHTML = `<div class="empty-hint">${escapeHtml(T('No artists yet. Open an artist and tap Follow to see them here.'))}</div>`;
       return;
     }
-    list.forEach((a) => grid.appendChild(followedArtistCard(a)));
+    sortedLibrary('artists', list).forEach((a) => grid.appendChild(followedArtistCard(a)));
     if (state.serverPort) fetchFollowedMeta(list);
   }
   const btnShowArtists = document.getElementById('btn-show-artists');
