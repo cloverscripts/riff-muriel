@@ -9702,6 +9702,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (el.viewSettings) el.viewSettings.classList.add('active');
             if (el.navSettings) el.navSettings.classList.add('active');
             enterSettings();
+            renderBlockedSettings(); // a linked device may have changed it
             updateOfflineStorageUI();
             updateMusicFolderUI();
   updateDownloadFolderUI();

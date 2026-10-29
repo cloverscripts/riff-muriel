@@ -1363,7 +1363,7 @@ body.perf .my-wave-ambient-light {
 :is(#view-favorites, #view-local, #view-history, #view-queue) .view-header h2,
 :is(#view-favorites, #view-local, #view-history, #view-queue) .view-header .view-title,
 :is(#view-favorites, #view-local, #view-history, #view-queue) .view-header .view-subtitle,
-:is(#view-favorites, #view-local) .view-header > div {
+:is(#view-favorites, #view-local) .view-header > div:not(.local-add-actions) {
   display: none !important;
 }
 
