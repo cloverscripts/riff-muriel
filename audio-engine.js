@@ -563,6 +563,8 @@
       if (this._suspendTimer) clearTimeout(this._suspendTimer);
       this._suspendTimer = setTimeout(() => {
         this._suspendTimer = null;
+        // the phone app in the background: a suspended context may not start again until the app is opened (#24)
+        if (this.keepRunning && this.keepRunning()) return;
         if (this.ctx && this.ctx.state === 'running') {
           this.ctx.suspend().catch(() => {});
         }
