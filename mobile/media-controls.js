@@ -64,18 +64,20 @@ module.exports = function mediaControls() {
     allow: () => plugin.allowBackground().then((r) => !!(r && r.unrestricted)).catch(() => false),
   };
   const ASKED = 'muriel_bg_asked';
-  // the island is on by default on vivo, and a live update needs notifications, which the playback notification
-  // never asked for: asked once too, after the battery question
-  const ISLAND_ASKED = 'muriel_island_asked';
-  const askIslandOnce = () => island.status().then((s) => {
-    if (!s.supported || s.notifications || !island.enabled(s) || localStorage.getItem(ISLAND_ASKED) || document.hidden) return;
-    localStorage.setItem(ISLAND_ASKED, '1');
+  // Android 13+ shows an app's notifications only once it asked for them; many phones hide the playback notification
+  // too, and then there is no play button after a game or a call took the music (#25). The island needs them as
+  // well. Asked once, after the battery question (the key is older than this: phones asked for the island aren't
+  // asked again). Before Android 13 notifications are on unless turned off, and then this does nothing.
+  const NOTIFY_ASKED = 'muriel_island_asked';
+  const askNotificationsOnce = () => island.status().then((s) => {
+    if (s.notifications !== false || localStorage.getItem(NOTIFY_ASKED) || document.hidden) return;
+    localStorage.setItem(NOTIFY_ASKED, '1');
     return island.allow({ settings: false });
   });
   const askOnce = () => {
     const first = localStorage.getItem(ASKED) || document.hidden ? Promise.resolve()
       : (localStorage.setItem(ASKED, '1'), background.allowed().then((ok) => { if (!ok) return background.allow(); }));
-    first.then(askIslandOnce).catch(() => {});
+    first.then(askNotificationsOnce).catch(() => {});
   };
 
   function hook() {

@@ -61,7 +61,8 @@ import java.util.concurrent.Executors;
  */
 @CapacitorPlugin(
         name = "MurielMedia",
-        // only asked for by allowIsland: the playback notification doesn't need it, the Live Update does
+        // asked for by allowIsland, once when the first song plays (media-controls.js) and from the island row.
+        // Android 13+ is meant to show media notifications without it, but many phones hide them too (#25).
         permissions = { @Permission(strings = { Manifest.permission.POST_NOTIFICATIONS }, alias = "notifications") })
 public class MediaControlsPlugin extends Plugin {
     static final String CHANNEL = "playback";
@@ -275,8 +276,8 @@ public class MediaControlsPlugin extends Plugin {
     private void notificationsAnswered(PluginCall call) {
         if (call == null) return;
         call.resolve(islandState());
-        // allowed while a song plays: the island shows now
-        scheduleIsland();
+        // allowed while a song plays: the playback notification and the island show now
+        refreshNotification();
     }
 
     private JSObject islandState() {
