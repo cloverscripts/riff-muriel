@@ -6323,6 +6323,33 @@ const server = http.createServer(guardHandler(async (req, res) => {
     return res.end(JSON.stringify({ success: true }));
   }
 
+  // which songs of a list are on this device already (a downloaded file, or the offline cache): the album
+  // page's Download button (#19) skips them and says so
+  if (parsedUrl.pathname === '/api/downloaded-status' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { if (res.writableEnded) return; body += chunk; if (body.length > MAX_BODY_BYTES) { body = ''; req.removeAllListeners('data'); req.removeAllListeners('end'); res.writeHead(413, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, error: 'payload too large' })); req.resume(); } });
+    req.on('end', async () => {
+      const payload = safeJsonParse(body, {});
+      const tracks = (Array.isArray(payload.tracks) ? payload.tracks : []).slice(0, 500);
+      try {
+        const downloaded = await Promise.all(tracks.map(async (t) => {
+          if (!t || typeof t !== 'object') return false;
+          const title = typeof t.title === 'string' ? t.title : '';
+          const artist = typeof t.artist === 'string' ? t.artist : '';
+          if ((title || artist) && await findDownloadedFile(title, artist)) return true;
+          const id = cleanTrackId(typeof t.id === 'string' ? t.id : '');
+          return !!(id && await findCachedFile(id));
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, downloaded }));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
   if (parsedUrl.pathname === '/api/check-cache') {
     const trackId = parsedUrl.query.id || '';
     const cleanId = cleanTrackId(trackId);

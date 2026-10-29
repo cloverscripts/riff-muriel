@@ -128,3 +128,16 @@ test('the audio proxy only fetches public addresses, and only with GET', async (
   assert.equal(post.status, 405);
   assert.deepEqual(outbound, []);
 });
+
+test('downloaded-status says which songs of a list already have a downloaded file (#19)', async () => {
+  const dir = path.join(tmp, 'Downloads');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'Beach House - Space Song.mp3'), 'x');
+  const r = await call('POST', '/api/downloaded-status', {
+    body: JSON.stringify({ tracks: [{ title: 'Space Song', artist: 'Beach House', id: 'a_1_1' }, { title: 'Myth', artist: 'Beach House' }, null] }),
+  });
+  assert.equal(r.status, 200);
+  assert.deepEqual(JSON.parse(r.body), { success: true, downloaded: [true, false, false] });
+  const anon = await call('POST', '/api/downloaded-status', { body: '{}', token: false });
+  assert.notEqual(anon.status, 200);
+});
