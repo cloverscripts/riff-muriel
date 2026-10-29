@@ -34,7 +34,8 @@ if (process.platform === 'linux') {
 }
 
 if (process.platform === 'win32') {
-  enabledFeatures.push('HardwareMediaKeyHandling');
+  // MediaSessionService: Chromium's own media session, so the Windows media overlay and lock screen show Muriel
+  enabledFeatures.push('HardwareMediaKeyHandling', 'MediaSessionService');
   app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 }
 
@@ -489,12 +490,34 @@ function runGUI() {
         return r.canceled ? null : pathToFileURL(r.filePaths[0]).href;
       });
 
-      ipcMain.handle('import-audio-files', async () => {
-        const r = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Audio', extensions: ['mp3','wav','flac','opus','ogg','oga','m4a','aac','webm','weba'] }] });
+      const AUDIO_EXTS = ['mp3','wav','flac','opus','ogg','oga','m4a','aac','webm','weba'];
+      // the audio files in a picked folder and its subfolders (a few levels, at most 1000 files)
+      async function audioFilesIn(dir, out, depth = 0) {
+        let entries = [];
+        try { entries = await fs.promises.readdir(dir, { withFileTypes: true }); } catch (e) { return; }
+        for (const entry of entries) {
+          if (out.length >= 1000 || entry.name.startsWith('.')) continue;
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) { if (depth < 4) await audioFilesIn(full, out, depth + 1); }
+          else if (entry.isFile() && AUDIO_EXTS.includes(path.extname(entry.name).slice(1).toLowerCase())) out.push(full);
+        }
+      }
+
+      // opts.folder: pick folders instead of files (from Riff 43.1); the files are copied into the library either way
+      ipcMain.handle('import-audio-files', async (e, opts) => {
+        const folder = !!(opts && opts.folder);
+        const r = await dialog.showOpenDialog(mainWindow, folder
+          ? { properties: ['openDirectory', 'multiSelections'] }
+          : { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Audio', extensions: AUDIO_EXTS }] });
         if (r.canceled) return [];
+        let sources = r.filePaths;
+        if (folder) {
+          sources = [];
+          for (const dir of r.filePaths) await audioFilesIn(dir, sources);
+        }
         fs.mkdirSync(LIBRARY_DIR, { recursive: true });
         const out = [];
-        for (const src of r.filePaths) {
+        for (const src of sources) {
           const st = fs.statSync(src), ext = path.extname(src).slice(1).toLowerCase();
           const id = 'local_' + crypto.createHash('sha1').update(path.basename(src) + st.size).digest('hex').slice(0, 12);
           const file = `${id}.${ext}`;
@@ -636,7 +659,9 @@ function runGUI() {
       ipcMain.on('set-hw-accel', (e, value) => { writeStartupConfig({ hwAccel: !!value }); });
 
       const MEDIA_KEYS = { MediaPlayPause: 'toggle', MediaNextTrack: 'next', MediaPreviousTrack: 'prev', MediaStop: 'stop' };
-      let mediaKeysWanted = true;
+      // off unless turned on in Settings: global shortcuts take the keys away from Chromium's media session, and
+      // with them the Windows overlay and lock screen controls (from Riff 43.1)
+      let mediaKeysWanted = false;
       let mediaKeysActive = false;
       const sendMedia = (cmd) => {
         if (process.env.MURIEL_DEBUG === '1') console.log('[media] globalShortcut', cmd);

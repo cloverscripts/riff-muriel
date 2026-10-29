@@ -16,7 +16,7 @@
   const DEVICE = new Set([
     LIST, ACTIVE,
     // the window, the tray and the keyboard belong to the computer
-    'muriel_tray_on_close', 'muriel_global_media_keys', 'muriel_hide_titlebar',
+    'muriel_tray_on_close', 'muriel_global_media_keys', 'muriel_win_global_media_keys', 'muriel_hide_titlebar',
     // what this device can handle
     'muriel_perf_mode', 'muriel_battery_saver', 'muriel_fps_cap', 'muriel_cache_limit_mb', 'muriel_stream_timeout',
     // asked, shown or done once per device

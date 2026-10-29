@@ -4773,7 +4773,8 @@ function i18nDict(lang) {
   try {
     const saved = JSON.parse(fs.readFileSync(path.join(I18N_DIR, `${lang}.json`), 'utf8'));
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
-      for (const [k, v] of Object.entries(saved)) if (typeof v === 'string' && v) dict[k] = v;
+      // an answer the service sent garbled (U+FFFD where letters were) is dropped and asked for again (from Riff 43.1)
+      for (const [k, v] of Object.entries(saved)) if (typeof v === 'string' && v && !v.includes('\uFFFD')) dict[k] = v;
     }
   } catch (e) {}
   d = { dict, size: Object.keys(dict).length };
@@ -4799,7 +4800,7 @@ async function i18nTranslate(texts, lang) {
   let reachable = true;
   const clean = (s, src) => {
     const v = typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : '';
-    return v && v.length <= src.length * 4 + 60 ? v : null;
+    return v && v.length <= src.length * 4 + 60 && !v.includes('\uFFFD') ? v : null;
   };
   async function run(idx) {
     if (!reachable || !idx.length) return;

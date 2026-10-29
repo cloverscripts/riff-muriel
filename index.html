@@ -362,10 +362,16 @@
             <h2>My files</h2>
             <span class="view-subtitle" id="local-subtitle">0 tracks in library</span>
           </div>
-          <button class="btn-pill-primary" id="btn-add-local-files">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Add files
-          </button>
+          <div class="local-add-actions">
+            <button class="btn-outline-pill" id="btn-add-local-folder" hidden>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+              Add folder
+            </button>
+            <button class="btn-pill-primary" id="btn-add-local-files">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Add files
+            </button>
+          </div>
         </div>
         <div class="view-search-box" id="local-search-box">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></svg>
@@ -1826,10 +1832,10 @@
             <div class="setting-item" id="setting-win-media-keys" style="display: none;">
                     <div class="setting-item-top" style="align-items: center;">
                       <div style="display: flex; flex-direction: column; gap: 2px;">
-                        <span class="setting-name">Capture media keys (Windows)</span>
-                        <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Turn off if another app should receive your media keys</span>
+                        <span class="setting-name">Legacy media key capture (Windows)</span>
+                        <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Leave off to use the Windows media overlay and lock screen controls. Turning this on takes media keys away from the overlay</span>
                       </div>
-                      <button class="effect-switch-btn active" id="btn-win-media-keys"><span class="thumb"></span></button>
+                      <button class="effect-switch-btn" id="btn-win-media-keys"><span class="thumb"></span></button>
                     </div>
                   </div>
             <div class="setting-item" id="tools-row">

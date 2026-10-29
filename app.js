@@ -833,8 +833,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.setItem(`muriel_adv_${name}`, boolVal ? 'true' : 'false');
   }
 
+  // off or on as chosen in Settings; never chosen: the system's "Reduce motion" (from Riff 43.2)
+  function systemPrefersReducedMotion() {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+  }
+
   function applyReducedMotionSetting() {
-    const reduced = getAdv('reduce_motion', false);
+    const reduced = getAdv('reduce_motion', systemPrefersReducedMotion());
     document.documentElement.classList.toggle('force-reduced-motion', reduced);
   }
 
@@ -1533,7 +1538,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (el.themeSwatches) {
       el.themeSwatches.forEach(sw => sw.classList.toggle('active', !!(state.themeAccent && sw.dataset.color && sw.dataset.color.toLowerCase() === state.themeAccent.toLowerCase())));
     }
-    if (el.customColorInput) el.customColorInput.value = hexColor;
+    // not while the picker is open: that reset the picker under the pointer
+    if (el.customColorInput && document.activeElement !== el.customColorInput) el.customColorInput.value = hexColor;
 
     const rgb = hexToRgb(hexColor);
     const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
@@ -4660,8 +4666,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!isWordEnabled && state.lyricsMode === 'word') {
       state.lyricsMode = 'line';
     }
-    const label = state.lyricsMode === 'word' ? 'Word' : 'Line';
-    el.btnLyricsMode.querySelector('span').textContent = label;
+    I18N.text(el.btnLyricsMode.querySelector('span'), state.lyricsMode === 'word' ? 'Word' : 'Line');
   }
 
   if (el.btnLyricsMode) {
@@ -5000,7 +5005,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (e) {}
     }
 
-    const finalName = deviceName || 'Default output';
+    const finalName = deviceName || T('Default output');
     nameEl.textContent = finalName;
     if (outputContainer) outputContainer.title = finalName;
 
@@ -7997,7 +8002,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!btn) return;
     const on = !!artistOnPage && Lib.isArtistFollowed(getFollowedArtists(), artistOnPage);
     btn.classList.toggle('following', on);
-    btn.textContent = on ? 'Following' : 'Follow';
+    I18N.text(btn, on ? 'Following' : 'Follow');
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
   const btnArtistFollow = document.getElementById('btn-artist-follow');
@@ -8384,10 +8389,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.localSearchInput.addEventListener('input', () => renderLocalView(false));
   }
 
-  async function importLocalFiles() {
+  async function importLocalFiles(opts) {
     if (!window.electronAPI || !window.electronAPI.importAudioFiles) return;
     try {
-      const items = await window.electronAPI.importAudioFiles();
+      const items = await window.electronAPI.importAudioFiles(opts && opts.folder ? { folder: true } : undefined);
       if (!items || items.length === 0) return;
 
       await fetch(`http://127.0.0.1:${state.serverPort}/api/library-add`, {
@@ -9806,6 +9811,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (el.navSettings) el.navSettings.addEventListener('click', () => switchView('settings'));
 
   if (el.btnAddLocalFiles) el.btnAddLocalFiles.addEventListener('click', () => importLocalFiles());
+  // a whole folder (and its subfolders) at once: computers only, phones pick files
+  const btnAddLocalFolder = document.getElementById('btn-add-local-folder');
+  if (btnAddLocalFolder && !isPhoneApp && window.electronAPI && window.electronAPI.importAudioFiles) {
+    btnAddLocalFolder.hidden = false;
+    btnAddLocalFolder.addEventListener('click', () => importLocalFiles({ folder: true }));
+  }
   if (el.btnAddLocalFilesEmpty) el.btnAddLocalFilesEmpty.addEventListener('click', () => importLocalFiles());
 
   if (el.btnAutoRemix) {
@@ -10753,8 +10764,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (el.customColorInput) {
-    el.customColorInput.addEventListener('input', (e) => {
-      state.themeAccent = e.target.value;
+    // on change too, not only input: some color pickers send only change, so the color was never saved (Riff 43.1)
+    const applyCustomAccent = (e) => {
+      if (!/^#[0-9a-f]{6}$/i.test(e.target.value || '')) return;
+      state.themeAccent = e.target.value.toLowerCase();
       localStorage.setItem('muriel_theme_accent', state.themeAccent);
       if (state.themeMode === 'auto') {
         const targetMode = currentEffectiveMode || 'dark';
@@ -10763,7 +10776,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       updateThemeFromState();
       if (el.themeSwatches) el.themeSwatches.forEach(sw => sw.classList.remove('active'));
-    });
+    };
+    el.customColorInput.addEventListener('input', applyCustomAccent);
+    el.customColorInput.addEventListener('change', applyCustomAccent);
   }
 
   if (el.sliderHue) {
@@ -11584,7 +11599,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const advButtons = document.querySelectorAll('.effect-switch-btn[data-adv]');
   advButtons.forEach(btn => {
     const key = btn.dataset.adv;
-    const defaultVal = (key === 'reduce_motion' || key === 'mesh_gradient' || key === 'glass_blur' || key === 'mesh_cover_color' || key === 'clip_fx') ? false : true;
+    const defaultVal = key === 'reduce_motion' ? systemPrefersReducedMotion() : (key === 'mesh_gradient' || key === 'glass_blur' || key === 'mesh_cover_color' || key === 'clip_fx') ? false : true;
     const currentVal = getAdv(key, defaultVal);
     btn.classList.toggle('active', currentVal);
 
@@ -12759,13 +12774,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingWinMediaKeys.style.display = isWindows ? '' : 'none';
   }
 
-  const savedWinMediaKeys = localStorage.getItem('muriel_global_media_keys') !== 'false';
+  // a new key, off by default: the old one was on for everyone, which hid Muriel from the Windows media overlay
+  const savedWinMediaKeys = localStorage.getItem('muriel_win_global_media_keys') === 'true';
   if (btnWinMediaKeys) {
     btnWinMediaKeys.classList.toggle('active', savedWinMediaKeys);
     btnWinMediaKeys.addEventListener('click', () => {
       const next = !btnWinMediaKeys.classList.contains('active');
       btnWinMediaKeys.classList.toggle('active', next);
-      localStorage.setItem('muriel_global_media_keys', next ? 'true' : 'false');
+      localStorage.setItem('muriel_win_global_media_keys', next ? 'true' : 'false');
       if (window.electronAPI && window.electronAPI.setMediaKeys) {
         window.electronAPI.setMediaKeys(next);
       }

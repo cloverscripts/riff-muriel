@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServerPort: () => ipcRenderer.invoke('get-server-port'),
   getGpuCompositing: () => ipcRenderer.invoke('get-gpu-compositing'),
   pickMedia: () => ipcRenderer.invoke('pick-media'),
-  importAudioFiles: () => ipcRenderer.invoke('import-audio-files'),
+  importAudioFiles: (opts) => ipcRenderer.invoke('import-audio-files', opts && opts.folder ? { folder: true } : undefined),
   onWindowVisibility: (callback) => {
     ipcRenderer.on('window-visibility', (event, visible) => callback(visible));
   },
