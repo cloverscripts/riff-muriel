@@ -15069,7 +15069,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else if (platform === 'soundcloud') {
         linkImportUrl.placeholder = T('Paste a SoundCloud playlist or track link');
       } else if (platform === 'yandex') {
-        linkImportUrl.placeholder = T('Paste a Yandex Music playlist link');
+        linkImportUrl.placeholder = T('Paste a Yandex Music playlist, album or song link');
       } else {
         linkImportUrl.placeholder = T('Paste a YouTube, YouTube Music, SoundCloud or Yandex Music link');
       }

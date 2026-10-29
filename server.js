@@ -5742,19 +5742,28 @@ function handleLastFmRoute(req, res, pathname) {
   });
 }
 
-// ---------- Yandex Music playlist import ----------
-// Reads a public playlist through Yandex Music's API: title, artist and length of each song. app.js then finds
-// each song on YouTube, like a Spotify import.
-// music.yandex.ru/users/<owner>/playlists/<kind>, or a shared /playlists/<uuid> (with or without "lk.")
-function parseYandexPlaylistUrl(input) {
+// ---------- Yandex Music import ----------
+// Reads a public playlist, an album or a song through Yandex Music's API: title, artist and length of each song.
+// app.js then finds each song on YouTube, like a Spotify import.
+// music.yandex.ru/users/<owner>/playlists/<kind>, a shared /playlists/<uuid> (with or without "lk."),
+// /album/<id>, /album/<id>/track/<id> or /track/<id>
+const YANDEX_HEADERS = { 'User-Agent': 'Yandex-Music-API', 'X-Yandex-Music-Client': 'YandexMusicAndroid/24023231', 'Accept': 'application/json' };
+
+function parseYandexLink(input) {
   let u;
   try { u = new URL(String(input || '').trim()); } catch (e) { return null; }
   if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
   if (!/^(?:www\.)?music\.yandex\.(?:ru|com|by|kz|uz|com\.tr)$/i.test(u.hostname)) return null;
   const users = u.pathname.match(/^\/users\/([A-Za-z0-9._-]{1,64})\/playlists\/(\d{1,12})\/?$/);
-  if (users) return `/users/${encodeURIComponent(users[1])}/playlists/${users[2]}`;
+  if (users) return { kind: 'playlist', path: `/users/${encodeURIComponent(users[1])}/playlists/${users[2]}` };
   const shared = u.pathname.match(/^\/playlists\/((?:lk\.)?[a-f0-9-]{8,64})\/?$/i);
-  if (shared) return `/playlist/${encodeURIComponent(shared[1])}`;
+  if (shared) return { kind: 'playlist', path: `/playlist/${encodeURIComponent(shared[1])}` };
+  const albumTrack = u.pathname.match(/^\/album\/(\d{1,12})\/track\/(\d{1,12})\/?$/);
+  if (albumTrack) return { kind: 'track', ids: [`${albumTrack[2]}:${albumTrack[1]}`] };
+  const track = u.pathname.match(/^\/track\/(\d{1,12})\/?$/);
+  if (track) return { kind: 'track', ids: [track[1]] };
+  const album = u.pathname.match(/^\/album\/(\d{1,12})\/?$/);
+  if (album) return { kind: 'album', id: album[1] };
   return null;
 }
 
@@ -5768,18 +5777,59 @@ function yandexCover(uri) {
   } catch (e) { return ''; }
 }
 
+function yandexTrack(t) {
+  if (!t || typeof t !== 'object') return null;
+  let title = lastfmText(t.title, 300);
+  if (!title) return null;
+  // "Song (Live)", "Song (Remix)": Yandex keeps the version apart
+  const version = lastfmText(t.version, 100);
+  if (version && !title.toLowerCase().includes(version.toLowerCase())) title = `${title} (${version})`.slice(0, 300);
+  const artist = Array.isArray(t.artists) ? t.artists.map((a) => a && lastfmText(a.name, 120)).filter(Boolean).join(', ') : lastfmText(t.artist, 300);
+  const ms = Number(t.durationMs);
+  const duration = ms > 0 ? Math.round(ms / 1000) : Math.max(0, Math.round(Number(t.duration) || 0));
+  return { title, artist: artist.slice(0, 300), duration: duration < 86400 ? duration : 0 };
+}
+
 function yandexTracks(result) {
   const list = Array.isArray(result && result.tracks) ? result.tracks : [];
   const out = [];
   for (const item of list.slice(0, 10000)) {
-    const t = item && item.track ? item.track : item;
-    if (!t || typeof t !== 'object') continue;
-    const title = lastfmText(t.title, 300);
-    if (!title) continue;
-    const artist = Array.isArray(t.artists) ? t.artists.map((a) => a && lastfmText(a.name, 120)).filter(Boolean).join(', ') : lastfmText(t.artist, 300);
-    const ms = Number(t.durationMs);
-    const duration = ms > 0 ? Math.round(ms / 1000) : Math.max(0, Math.round(Number(t.duration) || 0));
-    out.push({ title, artist: artist.slice(0, 300), duration: duration < 86400 ? duration : 0 });
+    const t = yandexTrack(item && item.track ? item.track : item);
+    if (t) out.push(t);
+  }
+  return out;
+}
+
+// A playlist's songs can come back as bare ids ({ id, albumId }); /tracks gives their details, 100 at a time
+function yandexMissingIds(result) {
+  const list = Array.isArray(result && result.tracks) ? result.tracks : [];
+  const ids = [];
+  for (const item of list.slice(0, 10000)) {
+    if (!item || typeof item !== 'object' || (item.track && item.track.title) || item.title) continue;
+    const id = String(item.id != null ? item.id : '');
+    if (!/^\d{1,12}$/.test(id)) continue;
+    const albumId = String(item.albumId != null ? item.albumId : '');
+    ids.push(/^\d{1,12}$/.test(albumId) ? `${id}:${albumId}` : id);
+  }
+  return ids;
+}
+
+async function fetchYandexTracksByIds(ids) {
+  const out = [];
+  for (let i = 0; i < ids.length && i < 3000; i += 100) {
+    const response = await fetchWithTimeout('https://api.music.yandex.net/tracks', {
+      method: 'POST',
+      headers: { ...YANDEX_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `track-ids=${encodeURIComponent(ids.slice(i, i + 100).join(','))}`
+    }, 20000);
+    if (!response.ok) { try { logger.log('warn', `Yandex import: /tracks answered ${response.status}`); } catch (_) {} continue; }
+    const text = await response.text();
+    if (text.length > 20e6) break;
+    const data = safeJsonParse(text, null);
+    for (const t of (data && Array.isArray(data.result) ? data.result : [])) {
+      const track = yandexTrack(t);
+      if (track) out.push(track);
+    }
   }
   return out;
 }
@@ -5799,15 +5849,19 @@ function yandexApiPaths(apiPath) {
 
 async function handleYandexImport(req, res, inputUrl) {
   const reply = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(data)); };
-  const apiPath = parseYandexPlaylistUrl(inputUrl);
-  if (!apiPath) return reply(400, { success: false, error: 'unsupported link: not a Yandex Music playlist link', status: 404 });
+  const link = parseYandexLink(inputUrl);
+  if (!link) return reply(400, { success: false, error: 'unsupported link: not a Yandex Music playlist, album or song link', status: 404 });
   let lastStatus = 0;
   let empty = false;
   try {
-    for (const p of yandexApiPaths(apiPath)) {
-      const response = await fetchWithTimeout(`https://api.music.yandex.net${p}`, {
-        headers: { 'User-Agent': 'Yandex-Music-API', 'X-Yandex-Music-Client': 'YandexMusicAndroid/24023231', 'Accept': 'application/json' }
-      }, 20000);
+    if (link.kind === 'track') {
+      const tracks = await fetchYandexTracksByIds(link.ids);
+      if (!tracks.length) return reply(404, { success: false, error: 'not found', status: 404 });
+      return reply(200, { success: true, name: tracks[0].title, cover: '', tracks });
+    }
+    const paths = link.kind === 'album' ? [`/albums/${link.id}/with-tracks`] : yandexApiPaths(link.path);
+    for (const p of paths) {
+      const response = await fetchWithTimeout(`https://api.music.yandex.net${p}`, { headers: YANDEX_HEADERS }, 20000);
       if (!response.ok) {
         lastStatus = response.status;
         try { logger.log('warn', `Yandex import: ${p.split('?')[0]} answered ${response.status}`); } catch (_) {}
@@ -5817,14 +5871,19 @@ async function handleYandexImport(req, res, inputUrl) {
       if (text.length > 20e6) return reply(502, { success: false, error: 'Yandex Music sent too much data' });
       const data = safeJsonParse(text, null);
       const r = data && data.result && typeof data.result === 'object' ? data.result : (data || {});
-      const tracks = yandexTracks(r);
+      // an album lists its songs per disc (volumes)
+      const source = link.kind === 'album' ? { tracks: (Array.isArray(r.volumes) ? r.volumes : []).filter(Array.isArray).flat() } : r;
+      let tracks = yandexTracks(source);
+      const missing = yandexMissingIds(source);
+      if (missing.length) tracks = tracks.concat(await fetchYandexTracksByIds(missing));
       if (!tracks.length) {
         empty = true;
         try { logger.log('warn', `Yandex import: ${p.split('?')[0]} had no readable songs`); } catch (_) {}
         continue;
       }
-      const cover = yandexCover(r.ogImage) || yandexCover(r.cover && (r.cover.uri || (Array.isArray(r.cover.itemsUri) && r.cover.itemsUri[0]))) || (typeof r.cover === 'string' ? yandexCover(r.cover) : '');
-      return reply(200, { success: true, name: lastfmText(r.title || r.name, 200) || 'Yandex Music playlist', cover, tracks });
+      const cover = yandexCover(r.ogImage) || yandexCover(r.coverUri) || yandexCover(r.cover && (r.cover.uri || (Array.isArray(r.cover.itemsUri) && r.cover.itemsUri[0]))) || (typeof r.cover === 'string' ? yandexCover(r.cover) : '');
+      const fallbackName = link.kind === 'album' ? 'Yandex Music album' : 'Yandex Music playlist';
+      return reply(200, { success: true, name: lastfmText(r.title || r.name, 200) || fallbackName, cover, tracks });
     }
     // 451: Yandex Music doesn't serve the country the request comes from
     if (lastStatus === 451) return reply(451, { success: false, code: 'yandex_region', error: 'Yandex Music is not available here', status: 451 });

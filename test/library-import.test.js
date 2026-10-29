@@ -19,9 +19,10 @@ function get(port, route, token) {
 test('Yandex Music: public playlists are read, anything else is refused before a request goes out', async () => {
   const oldFetch = globalThis.fetch;
   const asked = [];
+  const trackIds = [];
   let server;
   try {
-    globalThis.fetch = async (url) => {
+    globalThis.fetch = async (url, opts) => {
       asked.push(String(url));
       const u = new URL(url);
       if (u.pathname === '/users/someone/playlists/3') {
@@ -37,6 +38,12 @@ test('Yandex Music: public playlists are read, anything else is refused before a
       if (u.pathname === '/playlist/aaaa1111-0000-1111-2222-333344445555') {
         const rich = u.searchParams.get('richTracks') === 'true';
         return new Response(JSON.stringify({ result: { title: 'Bare', tracks: rich ? [{ track: { title: 'B', artists: [{ name: 'Y' }], durationMs: 90000 } }] : [{ id: 1, albumId: 2 }] } }), { status: 200 });
+      }
+      if (u.pathname === '/albums/77/with-tracks') return new Response(JSON.stringify({ result: { title: 'Album', coverUri: 'avatars.yandex.net/a/%%', volumes: [[{ title: 'One', version: 'Live', artists: [{ name: 'Z' }], durationMs: 100000 }], [{ title: 'Two', artists: [{ name: 'Z' }], durationMs: 50000 }]] } }), { status: 200 });
+      if (u.pathname === '/users/ids/playlists/5') return new Response(JSON.stringify({ result: { title: 'Ids', tracks: [{ id: 11, albumId: 22 }, { id: 'x;y' }] } }), { status: 200 });
+      if (u.pathname === '/tracks') {
+        trackIds.push(String(opts && opts.body));
+        return new Response(JSON.stringify({ result: [{ id: 11, title: 'Found', artists: [{ name: 'Q' }], durationMs: 70000 }] }), { status: 200 });
       }
       if (/^\/playlist\/(?:lk\.)?bbbb/.test(u.pathname)) return new Response('{}', { status: 451 });
       if (u.pathname === '/users/locked/playlists/1') return new Response('{}', { status: 403 });
@@ -59,7 +66,7 @@ test('Yandex Music: public playlists are read, anything else is refused before a
     assert.equal(shared.data.tracks[0].artist, 'X');
 
     const before = asked.length;
-    for (const bad of ['https://music.yandex.ru/users/..%2F..%2Fadmin/playlists/3', 'https://evil.example/users/a/playlists/1', 'https://music.yandex.ru.evil.example/users/a/playlists/1', 'javascript:alert(1)', 'https://music.yandex.ru/album/123']) {
+    for (const bad of ['https://music.yandex.ru/users/..%2F..%2Fadmin/playlists/3', 'https://evil.example/users/a/playlists/1', 'https://music.yandex.ru.evil.example/users/a/playlists/1', 'javascript:alert(1)', 'https://music.yandex.ru/artist/123', 'https://music.yandex.ru/album/12x']) {
       const r = await get(port, q(bad), token);
       assert.equal(r.status, 400, bad);
       assert.equal(r.data.success, false);
@@ -71,6 +78,20 @@ test('Yandex Music: public playlists are read, anything else is refused before a
     const bare = await get(port, q('https://music.yandex.ru/playlists/lk.aaaa1111-0000-1111-2222-333344445555'), token);
     assert.equal(bare.status, 200);
     assert.deepEqual(bare.data.tracks, [{ title: 'B', artist: 'Y', duration: 90 }]);
+    // albums (every disc), single songs, and playlist songs listed only by id
+    const album = await get(port, q('https://music.yandex.ru/album/77'), token);
+    assert.equal(album.status, 200);
+    assert.equal(album.data.name, 'Album');
+    assert.equal(album.data.cover, 'https://avatars.yandex.net/a/400x400');
+    assert.deepEqual(album.data.tracks, [{ title: 'One (Live)', artist: 'Z', duration: 100 }, { title: 'Two', artist: 'Z', duration: 50 }]);
+    const song = await get(port, q('https://music.yandex.ru/album/22/track/11'), token);
+    assert.equal(song.status, 200);
+    assert.deepEqual(song.data.tracks, [{ title: 'Found', artist: 'Q', duration: 70 }]);
+    assert.equal(trackIds.pop(), 'track-ids=11%3A22');
+    const ids = await get(port, q('https://music.yandex.ru/users/ids/playlists/5'), token);
+    assert.equal(ids.status, 200);
+    assert.deepEqual(ids.data.tracks, [{ title: 'Found', artist: 'Q', duration: 70 }]);
+    assert.equal(trackIds.pop(), 'track-ids=11%3A22', 'only well-formed ids are asked for');
     // why it failed reaches the dialog as Yandex's reason, not a Spotify message
     const region = await get(port, q('https://music.yandex.ru/playlists/lk.bbbb1111-0000-1111-2222-333344445555'), token);
     assert.equal(region.status, 451);
