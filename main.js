@@ -107,6 +107,8 @@ function runGUI() {
   const { startServer, PORT, getServerToken } = require('./server');
 
   let mainWindow = null;
+  // Must match build.appId so the NSIS shortcut, pinned icons and the running window share one taskbar identity.
+  if (process.platform === 'win32') app.setAppUserModelId('io.github.cloverscripts.muriel');
   const gotLock = app.requestSingleInstanceLock();
   if (!gotLock) { app.quit(); return; }
   app.on('second-instance', () => {
@@ -214,7 +216,6 @@ function runGUI() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const scaleFactor = primaryDisplay.scaleFactor;
 
-    app.setAppUserModelId('io.github.rootscripts.riff');
     mainWindow = new BrowserWindow({
       x: initialBounds.x,
       y: initialBounds.y,
