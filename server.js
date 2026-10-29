@@ -17,6 +17,7 @@ const logger = require('./logger');
 const { getSystemAudioOutputInfo } = require('./audio-output');
 const ytmArtist = require('./ytm-artist');
 const libraryPages = require('./library-pages');
+const recommendCore = require('./recommend-core');
 const { createTaskQueue, lowerPriority } = require('./ytdlp-queue');
 const { searchSoundcloudApi } = require('./soundcloud-search');
 const { copyStreamToCache } = require('./cache-copy');
@@ -890,16 +891,100 @@ async function ytMixTracks(seed) {
   return lookupPromise;
 }
 
+// YouTube Music's radio for a song (#19): what it would play next, over plain HTTPS (no yt-dlp, so it works on
+// phones too). These are songs, not search results, and play as they are.
+const ytmRadioCache = new Map();
+function seedVideoId(seed) {
+  if (!seed || (seed.platform && seed.platform !== 'youtube' && seed.platform !== 'ytmusic')) return '';
+  const id = cleanTrackId(String(seed.id || '')).replace(/^(yt_|youtube_)/, '');
+  return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : '';
+}
+async function ytmRadioTracks(seed) {
+  const id = seedVideoId(seed);
+  if (!id) return [];
+  const cached = ytmRadioCache.get(id);
+  if (cached && Date.now() < cached.expires) return cached.tracks;
+  if (cached && cached.promise) return cached.promise;
+  const lookup = (async () => {
+    let tracks = [];
+    try {
+      const json = await ytmRequest('next', { videoId: id, playlistId: `RDAMVM${id}`, isAudioOnly: true }, 6000);
+      const found = recommendCore.parseWatchPlaylist(json, id).slice(0, 30);
+      tracks = found.filter((t) => !isSpamOrUnofficial(t.title, t.duration, t.artist)).map((t, index) => ({
+        ...t, isCached: false, match: 1 - (index / 30) * 0.5, source: 'ytmradio', playable: true,
+      }));
+    } catch (_) {}
+    // nothing (or a failure): try again in 5 minutes rather than half an hour
+    ytmRadioCache.set(id, { expires: Date.now() + (tracks.length ? 30 : 5) * 60 * 1000, tracks });
+    trimCache(ytmRadioCache, 200);
+    return tracks;
+  })();
+  ytmRadioCache.set(id, { expires: 0, promise: lookup });
+  return lookup;
+}
+
+// Last.fm's similar songs (track.getSimilar), with the key Muriel scrobbles with; when Last.fm knows none for the
+// song, the top songs of the artists most like this one (artist.getSimilar). Found on YouTube when picked.
+const lastfmSimilarCache = new Map();
+function lastfmGet(params) {
+  const q = new URLSearchParams({ ...params, api_key: LASTFM_API_KEY, format: 'json', autocorrect: '1' });
+  return httpGetJson(`https://ws.audioscrobbler.com/2.0/?${q}`, 6000);
+}
+async function lastfmSimilarTracks(seed) {
+  const artist = String((seed && seed.artist) || '').replace(/\s*-\s*Topic$/i, '').trim();
+  const title = String((seed && seed.title) || '').trim();
+  if (!artist || /unknown artist/i.test(artist)) return [];
+  const key = getTrackNormalizedKey(artist, title) || normalizeArtistName(artist);
+  const cached = lastfmSimilarCache.get(key);
+  if (cached && Date.now() < cached.expires) return cached.tracks;
+  if (cached && cached.promise) return cached.promise;
+  const lookup = (async () => {
+    let tracks = [];
+    let reached = false;
+    try {
+      if (title) {
+        const data = await lastfmGet({ method: 'track.getsimilar', artist, track: title, limit: '30' });
+        if (data && !data.error) reached = true;
+        tracks = recommendCore.parseSimilarTracks(data).map((t) => ({ artist: t.artist, title: t.title, match: 0.5 + t.match * 0.7, source: 'lastfm' }));
+      }
+      if (tracks.length < 5) {
+        const data = await lastfmGet({ method: 'artist.getsimilar', artist, limit: '8' });
+        if (data && !data.error) reached = true;
+        const similar = recommendCore.parseSimilarArtists(data).slice(0, 5);
+        const tops = await Promise.all(similar.map(async (a, i) => {
+          const top = await lastfmGet({ method: 'artist.gettoptracks', artist: a.name, limit: '3' }).catch(() => null);
+          return recommendCore.parseTopTracks(top, a.name).map((t) => ({ artist: t.artist, title: t.title, match: 0.4 + a.match * 0.5 - i * 0.03, source: 'lastfm' }));
+        }));
+        tracks.push(...tops.flat());
+      }
+    } catch (_) {}
+    lastfmSimilarCache.set(key, { expires: Date.now() + (reached ? 6 * 3600 : 5 * 60) * 1000, tracks });
+    trimCache(lastfmSimilarCache, 300);
+    return tracks;
+  })();
+  lastfmSimilarCache.set(key, { expires: 0, promise: lookup });
+  return lookup;
+}
+
 async function gatherCandidates(seeds) {
   const seedList = (Array.isArray(seeds) ? seeds : []).slice(0, 4);
   const perSeed = await Promise.all(seedList.map(async (seed) => {
     const weight = Number(seed?.weight) || 1;
-    const [ytmix, dzRel, dzRad] = await Promise.all([
-      ytMixTracks(seed).catch(() => []),
+    const [radio, similar, dzRel, dzRad] = await Promise.all([
+      ytmRadioTracks(seed).catch(() => []),
+      lastfmSimilarTracks(seed).catch(() => []),
       dzRelatedTracks(seed?.artist).catch(() => []),
       dzRadioTracks(seed?.artist).catch(() => [])
     ]);
+    // the yt-dlp mix only when YouTube Music's radio had nothing (it costs a yt-dlp run, and phones have none)
+    const ytmix = radio && radio.length ? [] : await ytMixTracks(seed).catch(() => []);
     const list = [];
+    (radio || []).forEach(t => {
+      list.push({ ...t, match: (Number(t.match) || 0.7) * 1.4, seedWeight: weight });
+    });
+    (similar || []).forEach(t => {
+      list.push({ ...t, seedWeight: weight });
+    });
     (ytmix || []).forEach(t => {
       list.push({ ...t, match: (Number(t.match) || 0.7) * 1.3, seedWeight: weight });
     });
@@ -931,6 +1016,8 @@ function rankCandidates(cands, profile, heardKeys, avoid, limit = 10) {
 
     const normArtist = normalizeArtistName(artist);
     if (avoidArtists.has(normArtist)) continue;
+    // "Queen & David Bowie" when Queen is blocked (library-pages.js)
+    if (avoid?.artistNames?.length && libraryPages.isArtistBlocked(avoid.artistNames, artist)) continue;
 
     const weight = Number(c.seedWeight) || 1;
     const match = Number(c.match) || 0.5;
@@ -1027,7 +1114,22 @@ async function resolveCandidate(c) {
 
   const lookupPromise = (async () => {
     let resolved = null;
+    // the song on YouTube Music (a song row, by the same artist and title) first; SoundCloud after
     try {
+      const candArtistNorm = normalizeArtistName(c.artist);
+      const candTitleNorm = (c.title || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+      if (Date.now() >= ytmFailUntil && candArtistNorm && candTitleNorm) {
+        const songs = await searchYtmTracks(`${c.artist} ${c.title}`.trim(), 5);
+        const hit = (songs || []).find((r) => {
+          const rArtistNorm = normalizeArtistName(r.artist || '');
+          const rTitleNorm = (r.title || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+          return rArtistNorm && rTitleNorm && (rArtistNorm.includes(candArtistNorm) || candArtistNorm.includes(rArtistNorm))
+            && (rTitleNorm.includes(candTitleNorm) || candTitleNorm.includes(rTitleNorm));
+        });
+        if (hit) resolved = { ...hit, isCached: false };
+      }
+    } catch (_) {}
+    if (!resolved) try {
       const candArtistNorm = normalizeArtistName(c.artist);
       const candTitleNorm = (c.title || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
       const query = `${c.artist} ${c.title}`.trim();
@@ -1164,7 +1266,8 @@ async function recommendVibeTracks(historyTracks, favoriteTracks, platform = 'yo
       .map(normalizeArtistName)
       .filter(Boolean)
   );
-  const avoid = { keys: avoidKeys, artists: avoidArtists };
+  const avoidArtistNames = (Array.isArray(extra?.avoid?.artists) ? extra.avoid.artists : []).filter((a) => typeof a === 'string');
+  const avoid = { keys: avoidKeys, artists: avoidArtists, artistNames: avoidArtistNames };
 
   const sortedSeedKeys = chosenSeeds.map(s => getTrackNormalizedKey(s.artist, s.title) || s.id).sort().join('|');
   if (!extra?.refresh && sortedSeedKeys && vibeCache.has(sortedSeedKeys)) {
@@ -1208,6 +1311,19 @@ async function recommendVibeTracks(historyTracks, favoriteTracks, platform = 'yo
     }
   } catch (_) {}
 
+  // a video's title without "Artist - " and "(Official Video)" (recommend-core.js), so it reads like a song
+  finalTracks = finalTracks.map((t) => {
+    if (!t || t.platform !== 'youtube') return t;
+    const named = recommendCore.cleanVideoTitle(t.title, t.artist);
+    return named.title === t.title && named.artist === t.artist ? t : { ...t, title: named.title, artist: named.artist };
+  });
+  // blocked artists and songs (and collaborations of a blocked artist), and anything heard or picked just now
+  finalTracks = recommendCore.dropUnwanted(finalTracks, {
+    blocks: { artists: avoidArtistNames, songs: [] },
+    recentKeys: new Set([...heardKeys, ...avoidKeys]),
+    recentIds: heardIds,
+    keyOf: (t) => getTrackNormalizedKey(t.artist, t.title),
+  });
   if (finalTracks.length > 0) {
     finalTracks.forEach(track => {
       recentlyRecommendedTrackIds.add(track.id);
@@ -1313,7 +1429,11 @@ async function recommendVibeTracks(historyTracks, favoriteTracks, platform = 'yo
 
   return {
     profile,
-    tracks: fallbackTracks
+    tracks: recommendCore.dropUnwanted(fallbackTracks, {
+      blocks: { artists: avoidArtistNames, songs: [] },
+      recentKeys: avoidKeys,
+      keyOf: (t) => getTrackNormalizedKey(t.artist, t.title),
+    })
   };
 }
 

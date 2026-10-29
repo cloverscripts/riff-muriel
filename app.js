@@ -16575,7 +16575,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newTracks = data.tracks.filter(t => {
           const cid = getTrackCanonicalId(t);
           const nkey = getTrackNormalizedKey(t.artist, t.title);
-          return !existingIds.has(cid) && !existingKeys.has(nkey);
+          return !existingIds.has(cid) && !existingKeys.has(nkey) && !isBlocked(t);
         });
         if (newTracks.length > 0) {
           state.queue.push(...newTracks);
@@ -17115,7 +17115,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       section('Your genres').appendChild(chips);
     }
-    for (const sec of data.sections || []) {
+    // blocked artists and songs stay out of For you; so do the songs you played just now
+    const blockedArtists = getBlocks().artists;
+    const recentKeys = new Set((state.history || []).slice(0, 30).map(t => getTrackNormalizedKey(t.artist, t.title)));
+    for (const raw of data.sections || []) {
+      const sec = raw.type === 'artists'
+        ? { ...raw, items: (raw.items || []).filter(a => a && !Lib.isArtistBlocked(blockedArtists, a.name)) }
+        : { ...raw, tracks: (raw.tracks || []).filter(t => t && !isBlocked(t) && !recentKeys.has(getTrackNormalizedKey(t.artist, t.title))) };
+      if (!(sec.items || sec.tracks || []).length) continue;
       const row = document.createElement('div');
       row.className = 'fy-row';
       if (sec.type === 'artists') {
@@ -17294,8 +17301,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
           const data = await res.json();
           // a mix of a handful of songs is not much of a mix
-          if (data && data.success && Array.isArray(data.tracks) && data.tracks.length >= 8) {
-            mixes.push({ id: plan.id, title: `Daily Mix ${mixes.length + 1}`, artists: plan.artists, tracks: data.tracks });
+          const mixTracks = data && data.success && Array.isArray(data.tracks) ? data.tracks.filter(t => !isBlocked(t)) : [];
+          if (mixTracks.length >= 8) {
+            mixes.push({ id: plan.id, title: `Daily Mix ${mixes.length + 1}`, artists: plan.artists, tracks: mixTracks });
             try { localStorage.setItem(DAILY_MIXES_KEY, JSON.stringify({ day, mixes })); } catch (e) {}
             renderMadeForYou();
           }
@@ -17692,7 +17700,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return false;
       }
 
-      myWaveCurrentTracks = uniqueTracks;
+      // blocked artists and songs never make it into My Wave (the server leaves them out too; this is the safety net)
+      myWaveCurrentTracks = uniqueTracks.filter(t => !isBlocked(t));
+      if (!myWaveCurrentTracks.length) myWaveCurrentTracks = uniqueTracks;
       currentWaveFocusedIndex = 0;
       if (spHomeReady && isSpotifyHome()) renderMadeForYou();
       if (homeMode === 'wave') {
