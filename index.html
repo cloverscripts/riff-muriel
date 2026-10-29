@@ -1330,6 +1330,21 @@
               <input type="range" class="pill-range" id="slider-crossfade" min="0" max="12" step="1" value="0">
               <div class="setting-hints"><span>Off</span><span>6s</span><span>12s</span></div>
             </div>
+            <div class="setting-item" id="setting-audio-output-row" hidden>
+              <div class="setting-item-top" style="align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                  <span class="setting-name">Output device</span>
+                  <span class="setting-hint">Play on a speaker or headset of your choice instead of the system's</span>
+                </div>
+                <div class="m3-dropdown" id="audio-output-dropdown" style="width: 236px; flex-shrink: 1; min-width: 0;">
+                  <button class="m3-dropdown-trigger" id="audio-output-trigger" type="button">
+                    <span class="m3-dropdown-label" id="audio-output-label">System default</span>
+                    <svg class="m3-dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </button>
+                  <div class="m3-dropdown-menu" id="audio-output-menu" data-no-i18n></div>
+                </div>
+              </div>
+            </div>
             <div class="setting-item">
               <div class="setting-item-top" style="align-items: center;">
                 <span class="setting-name">Smooth preset transitions</span>
