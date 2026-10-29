@@ -288,7 +288,13 @@
           <div id="section-for-you"></div>
         </div>
 
-        <div class="search-results-container hidden" id="search-results-container">
+        <div class="search-results-container hidden" id="search-results-container" data-filter="all">
+          <div class="search-filter-chips" id="search-filter-chips" role="tablist">
+            <button type="button" class="chip-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
+            <button type="button" class="chip-btn" data-filter="songs" role="tab" aria-selected="false">Songs</button>
+            <button type="button" class="chip-btn" data-filter="artists" role="tab" aria-selected="false">Artists</button>
+            <button type="button" class="chip-btn" data-filter="albums" role="tab" aria-selected="false">Albums</button>
+          </div>
           <div id="search-artist-card-container"></div>
           <div id="search-albums-container"></div>
           <div class="tracks-list" id="search-tracks-list"></div>

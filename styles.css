@@ -8899,3 +8899,13 @@ body.perf .dl-mode-tab, body.perf .cc-float-time { transition: none !important; 
 .local-add-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .local-add-actions .btn-outline-pill { display: inline-flex; align-items: center; gap: 6px; }
 .local-add-actions [hidden] { display: none !important; }
+
+/* Search: All / Songs / Artists / Albums */
+.search-filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }
+.search-filter-chips .chip-btn { padding: 6px 14px; font-size: calc(13px * var(--font-scale, 1)); transition: background .15s, color .15s; }
+#search-results-container[data-filter="songs"] #search-artist-card-container,
+#search-results-container[data-filter="songs"] #search-albums-container,
+#search-results-container[data-filter="artists"] #search-albums-container,
+#search-results-container[data-filter="artists"] #search-tracks-list,
+#search-results-container[data-filter="albums"] #search-artist-card-container,
+#search-results-container[data-filter="albums"] #search-tracks-list { display: none !important; }

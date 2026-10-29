@@ -18533,6 +18533,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Search results: All / Songs / Artists / Albums (from Riff 43.1). Only shows or hides the sections, so the
+  // choice stays for the next search.
+  (function initSearchFilterChips() {
+    const box = el.searchResultsContainer;
+    const chips = document.getElementById('search-filter-chips');
+    if (!box || !chips) return;
+    chips.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip-btn[data-filter]');
+      if (!chip) return;
+      box.dataset.filter = chip.dataset.filter;
+      chips.querySelectorAll('.chip-btn').forEach((c) => {
+        const on = c === chip;
+        c.classList.toggle('active', on);
+        c.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    });
+  })();
+
+  // The mouse's back button goes back like the page's own Back button (from Riff 43.1; computers)
+  (function initMouseBack() {
+    if (isPhoneApp) return;
+    const back = (e) => {
+      if (e.button !== 3) return;
+      e.preventDefault();
+      if (e.type !== 'mouseup') return;
+      if (document.querySelector('.modal-backdrop:not(.hidden)')) return;
+      const btn = ['btn-back-artist', 'btn-back-album', 'btn-back-playlists', 'btn-settings-back']
+        .map((id) => document.getElementById(id)).find((b) => b && b.offsetParent !== null && b.closest('.content-view.active'));
+      if (btn) { btn.click(); return; }
+      if (state.previousView && state.previousView !== state.currentView && state.currentView !== 'discover') switchView(state.previousView);
+    };
+    window.addEventListener('mousedown', back, true);
+    window.addEventListener('mouseup', back, true);
+  })();
+
   loadPlugins();
   loadHomePage();
   initHomeHero();
