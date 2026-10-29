@@ -2813,6 +2813,81 @@ async function fetchOnlineCover(item, dest) {
   }
 }
 
+// ---- /api/image-proxy: the last cover a picture tries (app.js trackArtCandidates, computers only) ----
+// From Riff 43: the picture fetched here and kept on disk, so a cover host that is blocked or down (i.ytimg.com
+// in some countries) costs one try; when it gives nothing, the song's cover from iTunes by artist and title.
+// Public hosts only (the same check as every other fetch the server makes for the page), at most 8 MB.
+const IMAGE_PROXY_MAX = 8 * 1024 * 1024;
+const imageHostFails = new Map(); // hostname -> retry after (ms)
+const imageCoverMisses = new Map(); // artist + title -> no iTunes cover, ask again after (ms)
+
+function imageContentType(buf) {
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg';
+  if (buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  if (buf.length > 6 && buf.toString('ascii', 0, 3) === 'GIF') return 'image/gif';
+  return '';
+}
+
+async function fetchProxiedImage(target) {
+  let u;
+  try { u = new URL(target); } catch (e) { return null; }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+  if ((imageHostFails.get(u.hostname) || 0) > Date.now()) return null;
+  try {
+    if (!(await publicAddressOf(u.hostname))) return null;
+    const r = await fetchWithTimeout(u.href, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36' } }, 6000);
+    if (r.url && r.url !== u.href) {
+      const final = new URL(r.url);
+      if (!(await publicAddressOf(final.hostname))) return null;
+    }
+    if (!r.ok) return null;
+    if (Number(r.headers.get('content-length')) > IMAGE_PROXY_MAX) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    return buf.length >= 500 && buf.length <= IMAGE_PROXY_MAX && imageContentType(buf) ? buf : null;
+  } catch (e) {
+    imageHostFails.set(u.hostname, Date.now() + 10 * 60 * 1000);
+    trimCache(imageHostFails, 200);
+    return null;
+  }
+}
+
+async function handleImageProxy(req, res, parsedUrl) {
+  const target = String(parsedUrl.query.url || '');
+  const artist = String(parsedUrl.query.artist || '').slice(0, 200);
+  const title = String(parsedUrl.query.title || '').slice(0, 300);
+  if ((target && !/^https?:\/\//i.test(target)) || target.length > 2048 || (!target && !title)) { res.writeHead(400); return res.end(); }
+  let buffer = null;
+  if (target) {
+    const cachePath = path.join(THUMBNAILS_DIR, `proxy-${crypto.createHash('sha1').update(target).digest('hex')}.img`);
+    try { buffer = await fs.promises.readFile(cachePath); } catch (e) {}
+    if (buffer) return sendImage(res, buffer);
+    buffer = await fetchProxiedImage(target);
+    if (buffer) fs.promises.writeFile(cachePath, buffer).catch(() => {});
+  }
+  if (!buffer && title) {
+    const coverKey = crypto.createHash('sha1').update(`${artist}\u0000${title}`.toLowerCase()).digest('hex').slice(0, 16);
+    const coverPath = path.join(THUMBNAILS_DIR, `cover-${coverKey}.jpg`);
+    try { buffer = await fs.promises.readFile(coverPath); } catch (e) {
+      if ((imageCoverMisses.get(coverKey) || 0) < Date.now()) {
+        if (await fetchOnlineCover({ title, artist }, coverPath)) {
+          try { buffer = await fs.promises.readFile(coverPath); } catch (_) {}
+        } else {
+          imageCoverMisses.set(coverKey, Date.now() + 60 * 60 * 1000);
+          trimCache(imageCoverMisses, 500);
+        }
+      }
+    }
+  }
+  if (!buffer) { res.writeHead(404); return res.end(); }
+  return sendImage(res, buffer);
+}
+
+function sendImage(res, buffer) {
+  res.writeHead(200, { 'Content-Type': imageContentType(buffer) || 'image/jpeg', 'Cache-Control': 'private, max-age=31536000' });
+  return res.end(buffer);
+}
+
 async function processLocalCovers() {
   if (localCoverWorking) return;
   localCoverWorking = true;
@@ -6411,6 +6486,10 @@ const server = http.createServer(guardHandler(async (req, res) => {
       }
     });
     return;
+  }
+
+  if (parsedUrl.pathname === '/api/image-proxy') {
+    return handleImageProxy(req, res, parsedUrl);
   }
 
   if (parsedUrl.pathname === '/api/local-thumbnail') {

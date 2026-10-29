@@ -8488,6 +8488,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const add = (u) => { if (u && typeof u === 'string' && !out.includes(u)) out.push(u); };
     [getTrackArt(track).cover, track.localThumbnail, track.thumbnail, track.cover, track.image, track.artworkUrl].forEach((u) => { add(u); artVariants(u).forEach(add); });
     derivedTrackArt(track).forEach(add);
+    // last: the same picture through the in-app server (kept on disk, so a blocked or dead cover host costs one
+    // try), which falls back to the song's iTunes cover by artist and title. Computers only.
+    if (!isPhoneApp && state.serverPort && track.title) {
+      const first = out.find((u) => /^https?:\/\//.test(u) && !u.startsWith('http://127.0.0.1')) || '';
+      add(tokenUrl(`http://127.0.0.1:${state.serverPort}/api/image-proxy?url=${encodeURIComponent(first)}&artist=${encodeURIComponent(track.artist || '')}&title=${encodeURIComponent(track.title)}`));
+    }
     return out;
   }
 
@@ -16850,6 +16856,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const TRENDING_CACHE_KEY = 'muriel_trending_cache';
   const spThumb = (t) => (t && (getTrackThumbUrl(t) || t.thumbnail || t.cover)) || '';
 
+  function spCoverPlaceholder(wrap) {
+    if (wrap.querySelector('.sp-cover-note')) return;
+    wrap.insertAdjacentHTML('beforeend', '<svg class="sp-cover-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>');
+  }
+
   function spCard({ cover, gridCovers, title, sub, explicit, round, onClick }) {
     const card = document.createElement('div');
     card.className = 'sp-card';
@@ -16868,8 +16879,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       coverWrap.appendChild(grid);
     } else if (cover) {
       const img = document.createElement('img');
-      img.loading = 'lazy'; img.decoding = 'async'; img.alt = ''; img.src = cover;
+      img.loading = 'lazy'; img.decoding = 'async'; img.alt = '';
+      // a music note instead of the broken-image icon when the cover doesn't load (from Riff 43.2)
+      img.addEventListener('error', () => { img.remove(); spCoverPlaceholder(coverWrap); }, { once: true });
+      img.src = cover;
       coverWrap.appendChild(img);
+    } else if (!round) {
+      spCoverPlaceholder(coverWrap);
     }
     const titleEl = document.createElement('div');
     titleEl.className = 'sp-card-title sp-fade';
