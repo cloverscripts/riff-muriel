@@ -78,7 +78,8 @@
     'muriel_cover_bg_brightness', 'devsize_vfx', 'muriel_lyrics_word_style', 'muriel_lyrics_ease', 'muriel_lyrics_speed',
     'muriel_lyrics_gradient_tightness', 'muriel_gradient_tight', 'muriel_wavy_progress', 'muriel_progress_knob', 'muriel_progress_bg',
     'muriel_highlight_buttons', 'muriel_track_art', 'muriel_tr_enabled', 'muriel_tr_lang', 'muriel_tr_auto', 'muriel_crossfade',
-    'muriel_icon_pack', 'muriel_adv_intensity_bg', 'muriel_lyrics_source', 'muriel_word_source', 'muriel_track_trims'];
+    'muriel_icon_pack', 'muriel_adv_intensity_bg', 'muriel_lyrics_source', 'muriel_word_source', 'muriel_track_trims',
+    'muriel_blocked_artists', 'muriel_blocked_tracks'];
   const LISTENS_KEY = 'muriel_listens_v1';
   const WATCH = new Map([...Object.entries(LISTS).map(([n, l]) => [l.key, n]), ...SETTINGS.map((k) => [k, 'settings']), [LISTENS_KEY, 'listens']]);
 

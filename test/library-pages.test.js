@@ -118,3 +118,23 @@ test('the explicit badge: flagged by the service, or marked in the title', () =>
   assert.equal(L.isTrackExplicit({ title: 'Eleanor Rigby (Remastered)' }), false);
   assert.equal(L.isTrackExplicit(null), false);
 });
+
+test('blocked artists and songs: names, featured artists, the same song from another upload', () => {
+  const blocks = { artists: ['Queen'], songs: [{ id: 'abc', title: 'Song!', artist: 'A' }] };
+  assert.equal(L.isTrackBlocked(blocks, { title: 'Under Pressure', artist: 'Queen & David Bowie' }), true);
+  assert.equal(L.isTrackBlocked(blocks, { title: 'x', artist: 'Queen - Topic' }), true);
+  assert.equal(L.isTrackBlocked(blocks, { title: 'x', artist: 'Queensrÿche' }), false, 'a name, not a prefix');
+  assert.equal(L.isTrackBlocked(blocks, { id: 'abc', title: 'other' }), true, 'by id');
+  assert.equal(L.isTrackBlocked(blocks, { id: 'zzz', title: 'song', artist: 'a' }), true, 'by title and artist');
+  assert.equal(L.isTrackBlocked(blocks, { id: 'zzz', title: 'Song', artist: 'B' }), false, 'same title, another artist');
+  assert.equal(L.isTrackBlocked({ artists: [], songs: [] }, { title: 'x', artist: 'Queen' }), false);
+  assert.equal(L.isTrackBlocked(null, { title: 'x' }), false);
+
+  let r = L.toggleBlockedArtist(['Queen'], 'queen');
+  assert.deepEqual(r, { list: [], blocked: false }, 'blocking again unblocks, whatever the case');
+  r = L.toggleBlockedArtist([], '  ');
+  assert.equal(r.blocked, false, 'no name, nothing blocked');
+  r = L.toggleBlockedSong([], { id: 7, title: 'T', artist: 'A', thumbnail: 'x' });
+  assert.deepEqual(r, { list: [{ id: '7', title: 'T', artist: 'A' }], blocked: true }, 'only what is needed to match is kept');
+  assert.equal(L.toggleBlockedSong(r.list, { id: 'other', title: 't', artist: 'a' }).blocked, false);
+});

@@ -6017,11 +6017,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (pi >= 0 && pi !== state.queueIndex && !shuffleBag.played.has(planned)) return pi;
     if (q.length < 2) return 0;
     let pool = [];
-    q.forEach((t, i) => { if (i !== state.queueIndex && !shuffleBag.played.has(t)) pool.push(i); });
+    q.forEach((t, i) => { if (i !== state.queueIndex && !shuffleBag.played.has(t) && !isBlocked(t)) pool.push(i); });
     if (!pool.length) {
       shuffleBag.played = new Set([q[state.queueIndex]]);
-      q.forEach((t, i) => { if (i !== state.queueIndex) pool.push(i); });
+      q.forEach((t, i) => { if (i !== state.queueIndex && !isBlocked(t)) pool.push(i); });
     }
+    // everything else is blocked: the queue still moves on
+    if (!pool.length) q.forEach((t, i) => { if (i !== state.queueIndex) pool.push(i); });
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -6034,7 +6036,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (pending) return pending;
     if (shuffleBag.planned && q.indexOf(shuffleBag.planned) >= 0 && shuffleBag.planned !== q[state.queueIndex]) return shuffleBag.planned;
     const played = shuffleBag.queue === q ? shuffleBag.played : new Set();
-    let pool = q.filter((t, i) => i !== state.queueIndex && !played.has(t));
+    let pool = q.filter((t, i) => i !== state.queueIndex && !played.has(t) && !isBlocked(t));
+    if (!pool.length) pool = q.filter((t, i) => i !== state.queueIndex && !isBlocked(t));
     if (!pool.length) pool = q.filter((t, i) => i !== state.queueIndex);
     shuffleBag.planned = pool[Math.floor(Math.random() * pool.length)] || null;
     return shuffleBag.planned;
@@ -6083,6 +6086,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let nextIdx = state.queueIndex + 1;
+    while (nextIdx < state.queue.length && isBlocked(state.queue[nextIdx])) nextIdx++;
     if (nextIdx >= state.queue.length) {
       if (state.myWaveActive && typeof extendMyWaveQueue === 'function') {
         const tok = state.loadToken;
@@ -6096,6 +6100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       nextIdx = 0;
+      while (nextIdx < state.queueIndex && isBlocked(state.queue[nextIdx])) nextIdx++;
     }
     if (shuffleBag.next.length) shuffleBag.next = shuffleBag.next.filter(t => t !== state.queue[nextIdx]);
     state.queueIndex = nextIdx;
@@ -6167,7 +6172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // only looks up the one song that plays next, and only near the end of this one. Phones download
     // whole songs to play them, so they start on that halfway through.
     function prefetchNextQueueTrack() {
-      const nextTrack = state.isShuffle ? planShuffleNext() : (state.queue && state.queue[state.queueIndex + 1]);
+      const nextTrack = state.isShuffle ? planShuffleNext() : (state.queue && state.queue.slice(state.queueIndex + 1).find((t) => !isBlocked(t)));
       if (!nextTrack || nextTrack.platform === 'local' || !(nextTrack.url || nextTrack.id)) return;
       const q = `url=${encodeURIComponent(nextTrack.url || '')}&id=${encodeURIComponent(nextTrack.id || '')}&platform=${nextTrack.platform || state.platform}&title=${encodeURIComponent(nextTrack.title || '')}&artist=${encodeURIComponent(nextTrack.artist || '')}&duration=${encodeURIComponent(nextTrack.duration || 0)}&thumbnail=${encodeURIComponent(nextTrack.thumbnail || '')}`;
       fetch(`http://127.0.0.1:${state.serverPort}/api/${isPhoneApp ? 'stream-info' : 'prefetch'}?${q}&next=1`).catch(() => {});
@@ -7583,6 +7588,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // ---------- blocked artists and songs (from Riff 43.1; matching in library-pages.js) ----------
+  // Skipped when the queue moves on (a blocked song still plays when tapped), kept out of My Wave, the mixes and
+  // For you. Per profile, and the same on linked devices (sync.js).
+  const BLOCKED_ARTISTS_KEY = 'muriel_blocked_artists';
+  const BLOCKED_SONGS_KEY = 'muriel_blocked_tracks';
+  // parsed again only when the stored text changed (a linked device or another profile wrote it)
+  let blocksCache = null;
+  function getBlocks() {
+    let rawA = '', rawS = '';
+    try { rawA = localStorage.getItem(BLOCKED_ARTISTS_KEY) || ''; rawS = localStorage.getItem(BLOCKED_SONGS_KEY) || ''; } catch (e) {}
+    if (blocksCache && blocksCache.rawA === rawA && blocksCache.rawS === rawS) return blocksCache;
+    const parse = (raw) => { try { const v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+    blocksCache = { rawA, rawS, artists: parse(rawA).filter((a) => typeof a === 'string'), songs: parse(rawS).filter((t) => t && typeof t === 'object') };
+    return blocksCache;
+  }
+  function isBlocked(track) {
+    const b = getBlocks();
+    return (b.artists.length > 0 || b.songs.length > 0) && Lib.isTrackBlocked(b, track);
+  }
+  function saveBlocks(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) {}
+    blocksCache = null;
+    renderBlockedSettings();
+    updateArtistBlockButton();
+  }
+  function toggleBlockArtist(name) {
+    const r = Lib.toggleBlockedArtist(getBlocks().artists, name);
+    saveBlocks(BLOCKED_ARTISTS_KEY, r.list);
+    showToast(Tm(r.blocked ? 'Blocked {0}: their songs are skipped' : 'Unblocked {0}', name), 'info');
+  }
+  function toggleBlockSong(track) {
+    const r = Lib.toggleBlockedSong(getBlocks().songs, track);
+    saveBlocks(BLOCKED_SONGS_KEY, r.list);
+    showToast(Tm(r.blocked ? 'Blocked "{0}": it is skipped' : 'Unblocked "{0}"', track.title || ''), 'info');
+  }
+  // Settings > Tracks: what is blocked, a tap unblocks it
+  function renderBlockedSettings() {
+    const box = document.getElementById('blocked-items-list');
+    if (!box) return;
+    const { artists, songs } = getBlocks();
+    box.textContent = '';
+    if (!artists.length && !songs.length) {
+      const none = document.createElement('span');
+      none.className = 'blocked-empty';
+      I18N.text(none, 'Nothing blocked. Block an artist or a song from its menu or the artist page.');
+      box.appendChild(none);
+      return;
+    }
+    const pill = (label, kind, run) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'blocked-item-pill';
+      b.title = T('Unblock');
+      const name = document.createElement('span');
+      name.className = 'blocked-item-name';
+      name.textContent = label;
+      const tag = document.createElement('span');
+      tag.className = 'blocked-item-kind';
+      I18N.text(tag, kind);
+      b.append(name, tag);
+      b.insertAdjacentHTML('beforeend', '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>');
+      b.addEventListener('click', run);
+      box.appendChild(b);
+    };
+    artists.forEach((a) => pill(a, 'Artist', () => toggleBlockArtist(a)));
+    songs.forEach((t) => pill(t.artist ? `${t.title} · ${t.artist}` : t.title, 'Song', () => toggleBlockSong(t)));
+  }
+  renderBlockedSettings();
+
   function openTrackContextMenu(x, y, track, context, row) {
     closeTrackContextMenu();
     const isFav = state.favorites.some(f => isSameSong(f, track));
@@ -7625,6 +7699,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (context === 'playlist') {
       items.push({ label: 'Remove from playlist', danger: true, run: () => removeTrackFromCurrentPlaylist(track) });
+    }
+    if (track.title) {
+      items.push({ label: Lib.isSongBlocked(getBlocks().songs, track) ? 'Unblock song' : 'Block song', run: () => toggleBlockSong(track) });
+    }
+    if (track.artist && !/^unknown artist$/i.test(track.artist)) {
+      const artistName = String(track.artist).split(/\s*(?:,|&|\bfeat\.?|\bft\.?)\s*/i)[0].trim();
+      if (artistName) items.push({ label: Lib.isArtistBlocked(getBlocks().artists, artistName) ? 'Unblock artist' : 'Block artist', run: () => toggleBlockArtist(artistName) });
     }
 
     const menu = document.createElement('div');
@@ -7998,6 +8079,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // who the page shows: { name, id, ids, avatar, fans }; the name the page was opened with until it loads
   let artistOnPage = null;
   function updateFollowButton() {
+    updateArtistBlockButton();
     const btn = document.getElementById('btn-artist-follow');
     if (!btn) return;
     const on = !!artistOnPage && Lib.isArtistFollowed(getFollowedArtists(), artistOnPage);
@@ -8015,6 +8097,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast(r.followed ? `Following ${artistOnPage.name}` : `Unfollowed ${artistOnPage.name}`, 'info');
     });
   }
+
+  function updateArtistBlockButton() {
+    const btn = document.getElementById('btn-artist-block');
+    if (!btn) return;
+    const on = !!artistOnPage && Lib.isArtistBlocked(getBlocks().artists, artistOnPage.name);
+    btn.classList.toggle('blocked', on);
+    I18N.text(btn, on ? 'Blocked' : 'Block');
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  const btnArtistBlock = document.getElementById('btn-artist-block');
+  if (btnArtistBlock) btnArtistBlock.addEventListener('click', () => { if (artistOnPage) toggleBlockArtist(artistOnPage.name); });
 
   let artistRunId = 0;
   // `id` (the artist's channel) or `video` (a video of theirs) tells artists with the same name apart;
@@ -15937,6 +16030,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const disliked = Lib.feedbackAvoid(getMixFeedback());
     keys.push(...disliked.keys);
     disliked.artists.forEach((a) => { if (!artists.includes(a)) artists.push(a); });
+    // and blocked artists and songs
+    const blocks = getBlocks();
+    blocks.artists.forEach((a) => { if (!artists.includes(a)) artists.push(a); });
+    blocks.songs.forEach((t) => keys.push(getTrackNormalizedKey(t.artist, t.title)));
 
     return {
       keys: Array.from(new Set(keys)),

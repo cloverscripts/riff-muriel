@@ -178,11 +178,49 @@
     return isExplicitText(t.title) || isExplicitText(t.album);
   }
 
+  // ---------- blocked artists and songs (from Riff 43.1) ----------
+  // Never played on their own: skipped when the queue moves on and kept out of My Wave, the mixes and For you.
+  // A blocked artist is a name ("Queen" also blocks "Queen & David Bowie"); a blocked song is its id, or its
+  // title by the same artist (the same song from another upload).
+  const ARTIST_SPLIT = /\s*(?:,|&|\+|\/|;|\bx\b|\bfeat\.?|\bft\.?|\bfeaturing\b)\s*/i;
+  const artistsOf = (s) => String(s == null ? '' : s).split(ARTIST_SPLIT).map(nameKey).filter(Boolean);
+  function isArtistBlocked(blocked, artist) {
+    const keys = new Set(list(blocked).map(nameKey).filter(Boolean));
+    if (!keys.size || !artist) return false;
+    return keys.has(nameKey(artist)) || artistsOf(artist).some((k) => keys.has(k));
+  }
+  function blockedSongMatches(entry, track) {
+    if (!entry || !track) return false;
+    if (entry.id && track.id && String(entry.id) === String(track.id)) return true;
+    if (!fold(entry.title) || fold(entry.title) !== fold(track.title)) return false;
+    const a = nameKey(entry.artist), b = nameKey(track.artist);
+    return !a || !b || a === b;
+  }
+  const isSongBlocked = (blocked, track) => list(blocked).some((e) => blockedSongMatches(e, track));
+  const isTrackBlocked = (blocks, track) => !!track && !!blocks
+    && (isSongBlocked(blocks.songs, track) || isArtistBlocked(blocks.artists, track.artist));
+  function toggleBlockedArtist(blocked, artist) {
+    const name = String(artist == null ? '' : artist).trim().slice(0, 200);
+    const cur = list(blocked);
+    if (!nameKey(name)) return { list: cur, blocked: false };
+    const k = nameKey(name);
+    if (cur.some((a) => nameKey(a) === k)) return { list: cur.filter((a) => nameKey(a) !== k), blocked: false };
+    return { list: [...cur, name], blocked: true };
+  }
+  function toggleBlockedSong(blocked, track) {
+    const cur = list(blocked);
+    if (!track || !fold(track.title)) return { list: cur, blocked: false };
+    if (cur.some((e) => blockedSongMatches(e, track))) return { list: cur.filter((e) => !blockedSongMatches(e, track)), blocked: false };
+    const entry = { id: track.id ? String(track.id) : '', title: String(track.title).slice(0, 300), artist: String(track.artist || '').slice(0, 300) };
+    return { list: [...cur, entry], blocked: true };
+  }
+
   const api = {
     nameKey, sameAlbum, isAlbumSaved, albumEntry, toggleSavedAlbum,
     followMatches, isArtistFollowed, toggleFollowArtist, refreshFollowed,
     localDay, planMixes, cleanFeedback, isMixRated, rateMix, feedbackAvoid,
     isExplicitText, isTrackExplicit,
+    isArtistBlocked, isSongBlocked, isTrackBlocked, toggleBlockedArtist, toggleBlockedSong,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.MurielLibrary = api;

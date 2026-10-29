@@ -8909,3 +8909,13 @@ body.perf .dl-mode-tab, body.perf .cc-float-time { transition: none !important; 
 #search-results-container[data-filter="artists"] #search-tracks-list,
 #search-results-container[data-filter="albums"] #search-artist-card-container,
 #search-results-container[data-filter="albums"] #search-tracks-list { display: none !important; }
+
+/* Blocked artists and songs (Settings > Tracks, artist page) */
+.blocked-items-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.blocked-empty { font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline); }
+.blocked-item-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 5px 10px; border: none; border-radius: var(--md-shape-corner-full, 999px); background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); font: inherit; font-size: calc(12px * var(--font-scale, 1)); cursor: pointer; transition: background .15s; }
+.blocked-item-pill:hover { background: var(--md-sys-color-surface-container-highest); }
+.blocked-item-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blocked-item-kind { color: var(--md-sys-color-outline); font-size: calc(11px * var(--font-scale, 1)); }
+.blocked-item-pill svg { flex: none; opacity: .7; }
+.artist-block-btn.blocked { color: var(--md-sys-color-error); border-color: color-mix(in srgb, var(--md-sys-color-error) 55%, transparent); }

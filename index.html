@@ -523,6 +523,7 @@
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="7 4 20 12 7 20 7 4"></polygon></svg>
                 </button>
                 <button type="button" class="btn-outline-pill artist-follow-btn" id="btn-artist-follow" aria-pressed="false">Follow</button>
+                <button type="button" class="btn-outline-pill artist-block-btn" id="btn-artist-block" aria-pressed="false" title="Skip this artist's songs and keep them out of My Wave and the mixes">Block</button>
               </div>
             </div>
           </div>
@@ -1352,6 +1353,15 @@
                 </div>
                 <button type="button" class="effect-switch-btn active" id="toggle-explicit-tag"><span class="thumb"></span></button>
               </div>
+            </div>
+            <div class="setting-item" id="setting-blocked-items">
+              <div class="setting-item-top" style="align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="setting-name">Blocked artists and songs</span>
+                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">Skipped when the queue moves on and kept out of My Wave and the mixes. Tap one to unblock it</span>
+                </div>
+              </div>
+              <div class="blocked-items-list" id="blocked-items-list"></div>
             </div>
                 </div>
                 <div class="settings-group-title" data-i18n>Lyrics</div>
