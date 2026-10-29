@@ -8541,6 +8541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sel.value = getLibrarySort(kind);
     sel.addEventListener('change', () => {
       try { localStorage.setItem(LIBRARY_SORT_KEYS[kind], librarySortMode(kind, sel.value)); } catch (e) {}
+      syncSortDropdown(kind);
       if (kind === 'albums') renderSavedAlbums();
       else if (kind === 'artists') renderArtistsTab();
       else renderPlaylistsList();
