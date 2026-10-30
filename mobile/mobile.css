@@ -597,3 +597,6 @@ html.is-mobile .cc-handle { width: 24px; }
 html.is-mobile .cc-handle-left { left: -12px; }
 html.is-mobile .cc-handle-right { right: -12px; }
 html.is-mobile .app-icon-picker-grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+
+/* song radio (#28): the queue's "Radio · song" label a little roomier for a finger */
+html.is-mobile .queue-radio-label { margin: 2px 0 10px; padding: 6px 12px 6px 10px; }

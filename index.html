@@ -1397,6 +1397,15 @@
                 <button type="button" class="effect-switch-btn active" id="toggle-explicit-tag"><span class="thumb"></span></button>
               </div>
             </div>
+            <div class="setting-item">
+              <div class="setting-item-top" style="align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="setting-name">Song radio</span>
+                  <span style="font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline);">"Start radio" in a song's menu and the player bar: a mix of songs like it that keeps going</span>
+                </div>
+                <button type="button" class="effect-switch-btn active" id="toggle-song-radio"><span class="thumb"></span></button>
+              </div>
+            </div>
             <div class="setting-item" id="setting-blocked-items">
               <div class="setting-item-top" style="align-items: center;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -2142,6 +2151,9 @@
     </div>
 
     <div class="playbar-right">
+      <button class="btn-icon-pill" id="btn-playbar-radio" title="Start radio" aria-label="Start radio">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg>
+      </button>
       <div class="visualizer-container" id="visualizer-container" title="Visualizer">
         <canvas id="visualizer-canvas" width="60" height="24"></canvas>
       </div>
@@ -3512,6 +3524,7 @@
     <button type="button" class="btn-outline-pill" id="multi-select-all">Select all</button>
     <button type="button" class="btn-outline-pill" id="multi-select-fav">Favorite</button>
     <button type="button" class="btn-outline-pill" id="multi-select-add">Add to playlist</button>
+    <button type="button" class="btn-outline-pill" id="multi-select-radio" title="Radio from selected songs">Start radio</button>
     <button type="button" class="btn-outline-pill" id="multi-select-download">Download</button>
     <button type="button" class="btn-outline-pill" id="multi-select-remove">Remove</button>
     <button type="button" class="btn-pill-primary" id="multi-select-done">Done</button>

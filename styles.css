@@ -8945,3 +8945,18 @@ body.perf .dl-mode-tab, body.perf .cc-float-time { transition: none !important; 
 .blocked-item-kind { color: var(--md-sys-color-outline); font-size: calc(11px * var(--font-scale, 1)); }
 .blocked-item-pill svg { flex: none; opacity: .7; }
 .artist-block-btn.blocked { color: var(--md-sys-color-error); border-color: color-mix(in srgb, var(--md-sys-color-error) 55%, transparent); }
+
+/* song radio (#28) */
+body.no-song-radio #btn-playbar-radio, body.no-song-radio #multi-select-radio { display: none !important; }
+body.mini #btn-playbar-radio { display: none !important; }
+.queue-radio-label {
+  display: flex; width: fit-content; align-items: center; gap: 6px;
+  margin: 0 0 8px; padding: 5px 11px 5px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--md-sys-color-primary) 14%, transparent);
+  color: var(--md-sys-color-primary);
+  font-size: calc(12px * var(--font-scale, 1)); font-weight: 600; letter-spacing: .01em;
+  max-width: 100%; flex-shrink: 0;
+}
+.queue-radio-label[hidden] { display: none; }
+.queue-radio-label svg { flex-shrink: 0; }
+.queue-radio-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

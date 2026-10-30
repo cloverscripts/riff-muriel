@@ -136,7 +136,46 @@
     return out;
   }
 
-  const api = { parseLength, cleanVideoTitle, parseWatchPlaylist, parseSimilarTracks, parseSimilarArtists, parseTopTracks, dropUnwanted };
+  // Song radio (#28): one list of candidates per seed song, mixed evenly (one from each seed in turn, best first),
+  // without repeats across seeds, without the seeds themselves and without anything in `exclude` (songs the radio
+  // already queued). At most `perArtist` songs by one artist, so one seed's artist doesn't take over.
+  function mixRadio(perSeed, { limit = 25, exclude, keyOf, perArtist = 3 } = {}) {
+    const key = typeof keyOf === 'function' ? keyOf : (t) => `${lib.nameKey(t.artist)}::${lib.nameKey(t.title)}`;
+    const ex = exclude || {};
+    const exKeys = ex.keys instanceof Set ? ex.keys : new Set(list(ex.keys));
+    const exIds = ex.ids instanceof Set ? ex.ids : new Set(list(ex.ids));
+    const lists = list(perSeed).map((l) => list(l).filter((t) => t && t.title).slice()
+      .sort((a, b) => (Number(b.match) || 0) - (Number(a.match) || 0)));
+    const seenKeys = new Set();
+    const seenIds = new Set();
+    const byArtist = new Map();
+    const pos = lists.map(() => 0);
+    const out = [];
+    let moved = true;
+    while (out.length < limit && moved) {
+      moved = false;
+      for (let s = 0; s < lists.length && out.length < limit; s++) {
+        const l = lists[s];
+        while (pos[s] < l.length) {
+          const t = l[pos[s]++];
+          const k = key(t);
+          const id = t.id ? String(t.id) : '';
+          const a = lib.nameKey(String(t.artist || '').split(/\s*(?:,|&|\bfeat\.?|\bft\.?)\s*/i)[0]);
+          if ((k && (exKeys.has(k) || seenKeys.has(k))) || (id && (exIds.has(id) || seenIds.has(id)))) continue;
+          if (a && (byArtist.get(a) || 0) >= perArtist) continue;
+          if (k) seenKeys.add(k);
+          if (id) seenIds.add(id);
+          if (a) byArtist.set(a, (byArtist.get(a) || 0) + 1);
+          out.push(t);
+          moved = true;
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  const api = { parseLength, cleanVideoTitle, parseWatchPlaylist, parseSimilarTracks, parseSimilarArtists, parseTopTracks, dropUnwanted, mixRadio };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.MurielRecommend = api;
 })(typeof window !== 'undefined' ? window : globalThis);
