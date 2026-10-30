@@ -2231,6 +2231,64 @@ async function handleVibeRecommendations(req, res, payload) {
   }
 }
 
+// Song radio (#28): "Start radio" on one song, or on a few picked together. Each seed's own candidates (YouTube
+// Music's radio, Last.fm's similar songs, Deezer), mixed evenly across the seeds (recommend-core.js mixRadio),
+// leaving out the seeds, what this radio already queued, and blocked artists and songs. Unlike My Wave it does not
+// care what was heard before: a radio is about the songs it was started from.
+async function songRadioTracks(seeds, { limit = 25, exclude = {}, blocks = {} } = {}) {
+  const seedList = (Array.isArray(seeds) ? seeds : []).filter((s) => s && (s.title || s.id)).slice(0, 5).map((s) => ({
+    artist: String(s.artist || ''), title: String(s.title || ''), id: String(s.id || ''), platform: s.platform || 'youtube', weight: 1,
+  }));
+  if (!seedList.length) return [];
+  const keyOf = (t) => getTrackNormalizedKey(t.artist, t.title);
+  const exKeys = new Set((Array.isArray(exclude.keys) ? exclude.keys : []).filter((k) => typeof k === 'string'));
+  const exIds = new Set((Array.isArray(exclude.ids) ? exclude.ids : []).map((x) => String(x || '').replace(/^(yt_|youtube_)/, '')).filter(Boolean));
+  for (const s of seedList) {
+    const k = keyOf(s);
+    if (k) exKeys.add(k);
+    const v = seedVideoId(s);
+    if (v) exIds.add(v);
+  }
+  const blockArtists = (Array.isArray(blocks.artists) ? blocks.artists : []).filter((a) => typeof a === 'string');
+  const blockSongs = (Array.isArray(blocks.songs) ? blocks.songs : []).filter((x) => x && typeof x === 'object');
+  const blockSet = { artists: blockArtists, songs: blockSongs };
+  const perSeed = await Promise.all(seedList.map((seed) => gatherCandidates([seed]).catch(() => [])));
+  const filtered = perSeed.map((l) => recommendCore.dropUnwanted(l, { blocks: blockSet, keyOf }));
+  const mixed = recommendCore.mixRadio(filtered, { limit: limit * 2, exclude: { keys: exKeys, ids: exIds }, keyOf, perArtist: seedList.length > 1 ? 3 : 2 });
+  // found on YouTube a few at a time; the order of the mix is kept
+  const resolved = new Array(mixed.length).fill(null);
+  let next = 0;
+  let found = 0;
+  const worker = async () => {
+    while (next < mixed.length && found < limit) {
+      const i = next++;
+      try {
+        const t = await resolveCandidate(mixed[i]);
+        if (t) { resolved[i] = t; found++; }
+      } catch (_) {}
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(5, mixed.length) }, worker));
+  const tracks = resolved.filter(Boolean).map((t) => {
+    if (t.platform !== 'youtube') return t;
+    const named = recommendCore.cleanVideoTitle(t.title, t.artist);
+    return named.title === t.title && named.artist === t.artist ? t : { ...t, title: named.title, artist: named.artist };
+  });
+  return recommendCore.dropUnwanted(tracks, { blocks: blockSet, recentKeys: exKeys, recentIds: exIds, keyOf }).slice(0, limit);
+}
+
+async function handleSongRadio(req, res, payload) {
+  const limit = Math.max(5, Math.min(parseInt(payload?.limit || '25', 10) || 25, 40));
+  try {
+    const tracks = await songRadioTracks(payload?.seeds, { limit, exclude: payload?.exclude || {}, blocks: payload?.blocks || {} });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, tracks }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: false, error: error.message }));
+  }
+}
+
 // shown to the listener as is: by now every other upload and SoundCloud were tried too
 const STREAM_FAILED = "Couldn't play this song. Try another version from search";
 
@@ -3601,6 +3659,7 @@ const TOKEN_PROTECTED_ROUTES = new Set([
   '/api/translate',
   '/api/i18n-batch',
   '/api/vibe',
+  '/api/radio',
   '/api/search',
   '/api/artist',
   '/api/lyrics',
@@ -6402,6 +6461,13 @@ const server = http.createServer(guardHandler(async (req, res) => {
       const payload = safeJsonParse(body, {});
       handleVibeRecommendations(req, res, payload);
     });
+    return;
+  }
+
+  if (parsedUrl.pathname === '/api/radio' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { if (res.writableEnded) return; body += chunk; if (body.length > MAX_BODY_BYTES) { body = ''; req.removeAllListeners('data'); req.removeAllListeners('end'); res.writeHead(413, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, error: 'payload too large' })); req.resume(); } });
+    req.on('end', () => handleSongRadio(req, res, safeJsonParse(body, {})));
     return;
   }
 
