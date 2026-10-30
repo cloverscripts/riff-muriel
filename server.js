@@ -2584,7 +2584,11 @@ async function lookupArtistInfo(cleanName, cacheKey) {
     const wikiData = await httpsJson(wikiUrl, 3500, 'devsize/2.0');
 
     // not a list of everything called that ("Queen most commonly refers to...")
-    if (wikiData && wikiData.extract && wikiData.type !== 'disambiguation') {
+    // and about this name at all, not a page the title lookup landed on that never mentions it
+    const extLower = String(wikiData && wikiData.extract || '').toLowerCase();
+    const nameLower = cleanName.toLowerCase();
+    const aboutName = extLower.includes(nameLower) || nameLower.split(/\s+/).some(w => w.length >= 3 && extLower.includes(w));
+    if (wikiData && wikiData.extract && wikiData.type !== 'disambiguation' && aboutName) {
       bio = wikiData.extract;
       if (!avatar && wikiData.originalimage?.source) {
         avatar = wikiData.originalimage.source;

@@ -2628,12 +2628,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.scrubberTrack.appendChild(scrubberCanvas);
       }
       const rect = el.scrubberTrack.getBoundingClientRect();
-      cachedTrackWidth = rect.width;
+      // measured while the playbar is still hidden the width is 0, which left a 0px canvas behind
+      const rw = rect.width || el.scrubberTrack.clientWidth || 300;
+      cachedTrackWidth = rw;
       cachedTrackHeight = Math.max(40, rect.height);
       hasDrawnPausedFrame = false;
-      scrubberCanvas.width = rect.width * dpr;
-      scrubberCanvas.height = Math.max(40, rect.height) * dpr;
-      scrubberCanvas.style.width = `${rect.width}px`;
+      scrubberCanvas.width = Math.round(rw * dpr);
+      scrubberCanvas.height = Math.round(Math.max(40, rect.height) * dpr);
+      scrubberCanvas.style.width = '100%';
       scrubberCanvas.style.height = `${Math.max(40, rect.height)}px`;
       const ctx = scrubberCanvas.getContext('2d');
       ctx.resetTransform();
@@ -2945,10 +2947,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         scrubProgress += (targetProgress - scrubProgress) * Math.min(1, dt * followSpeed);
 
         const targetAnim = isDraggingScrubber ? 1 : 0;
-        scrubKnobAnim += (targetAnim - scrubKnobAnim) * Math.min(1, dt * 16);
+        scrubKnobAnim += (targetAnim - scrubKnobAnim) * Math.min(1, Math.max(0, dt * 16));
+        // a NaN here sticks for good and roundRect throws on a negative radius
+        scrubKnobAnim = Math.max(0, Math.min(1, Number.isFinite(scrubKnobAnim) ? scrubKnobAnim : 0));
         const curKnobW = 7.5 + (9.0 - 7.5) * scrubKnobAnim;
         const curKnobH = 24 + (32 - 24) * scrubKnobAnim;
-        const curKnobR = 3.75 + (4.5 - 3.75) * scrubKnobAnim;
+        const curKnobR = Math.max(0, 3.75 + (4.5 - 3.75) * scrubKnobAnim);
 
         const padLeft = 5.5;
         const padRight = 5.5;
