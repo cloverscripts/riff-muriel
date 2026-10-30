@@ -189,7 +189,18 @@ async function installFfmpeg() {
     // On Windows, a Git/MSYS GNU tar earlier in PATH reads "C:\..." as host:path and can't open zips;
     // the bsdtar that ships in System32 handles both.
     const tar = IS_WIN ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
-    await run(tar, ['-xf', archive, '-C', work]);
+    if (IS_WIN && /\.zip$/i.test(archive)) {
+      // .NET's ZipFile doesn't depend on which tar is installed; System32 tar is the fallback
+      const q = p => p.replace(/'/g, "''");
+      try {
+        await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command',
+          `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('${q(archive)}', '${q(work)}')`]);
+      } catch (_) {
+        await run(tar, ['-xf', archive, '-C', work]);
+      }
+    } else {
+      await run(tar, ['-xf', archive, '-C', work]);
+    }
     for (const name of ['ffmpeg', 'ffprobe']) {
       const exe = IS_WIN ? `${name}.exe` : name;
       const src = findFile(work, exe);
