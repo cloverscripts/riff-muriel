@@ -3543,6 +3543,178 @@ document.addEventListener('DOMContentLoaded', async () => {
       audioEngine._applyMasterVolume();
     }
   }
+
+  // ---- Crossfade with overlap (#29) ----
+  // The #22 fix let the song fade out to its real end, but the next one only started on 'ended', so Crossfade
+  // sounded like no crossfade at all. Now the last X seconds of the song move to a second player (the "tail",
+  // the same file opened again and seeked to that point before it's needed), which keeps playing to the song's
+  // real end (or its trim end) while fading out; the main player goes on to the next song at once, which fades
+  // in. Everything else (queue, now playing, scrobbling, media session) follows the main player as for any
+  // next song. Falls back to the plain fade-out when the song can't be opened twice (hls.js / blob sources),
+  // and on iPhones, where a player's volume can't be changed (so neither song could fade).
+  const xfade = { prep: null, tail: null, handingOver: false, fadeInRaf: 0 };
+  const crossfadeSeconds = () => parseInt(localStorage.getItem('muriel_crossfade') || '0', 10) || 0;
+  let volumeWorks = null;
+  function elementVolumeWorks() {
+    if (volumeWorks === null) {
+      try { const t = new Audio(); t.volume = 0.5; volumeWorks = Math.abs(t.volume - 0.5) < 0.01; } catch (e) { volumeWorks = false; }
+    }
+    return volumeWorks;
+  }
+  function canOverlap(a) {
+    if (!a || hlsInstance) return false;
+    const src = a.currentSrc || '';
+    if (!src || /^(blob|data):/.test(src)) return false;
+    return elementVolumeWorks();
+  }
+  // the level the song plays at: on computers the engine's master volume (the tail skips the effects chain)
+  function tailLevel() {
+    if (!audioEngine) return 1;
+    if (audioEngine.isMuted) return 0;
+    if (isPhoneApp) return 1;
+    const v = (Number(audioEngine.volume) || 0) * ((audioEngine.audioSettings && Number(audioEngine.audioSettings.volume)) || 1);
+    return Math.max(0, Math.min(1, v));
+  }
+  function disposeTailEl(t) {
+    if (!t) return;
+    try { t.pause(); t.removeAttribute('src'); t.load(); } catch (e) {}
+  }
+  function dropCrossfadePrep() {
+    const p = xfade.prep;
+    xfade.prep = null;
+    if (p) { clearTimeout(p.timer); disposeTailEl(p.el); }
+  }
+  // ends the old song's tail: at its end, or quickly (`fadeSec`) on a skip
+  function stopCrossfadeTail(fadeSec = 0) {
+    const t = xfade.tail;
+    if (!t) return;
+    xfade.tail = null;
+    clearInterval(t.loop);
+    if (!(fadeSec > 0) || t.el.paused) { disposeTailEl(t.el); return; }
+    const from = t.el.volume;
+    const started = performance.now();
+    const step = setInterval(() => {
+      const p = (performance.now() - started) / (fadeSec * 1000);
+      if (p >= 1) { clearInterval(step); disposeTailEl(t.el); return; }
+      try { t.el.volume = from * (1 - p); } catch (e) {}
+    }, 30);
+  }
+  function resumeCrossfadeTail() {
+    const t = xfade.tail;
+    if (t) Promise.resolve(t.el.play()).then(null, () => { if (xfade.tail === t) stopCrossfadeTail(0); });
+  }
+  function crossfadeTailRemaining() {
+    const t = xfade.tail;
+    if (!t) return 0;
+    return Math.max(0, (t.end - (t.el.currentTime || 0)) / (t.el.playbackRate || 1));
+  }
+  // the second player opened at the crossfade point, ready before it's needed
+  function prepareCrossfade(point, end) {
+    const a = el.nativeAudio;
+    dropCrossfadePrep();
+    const t = new Audio();
+    const p = { el: t, token: state.loadToken, point, end, ready: false, timer: 0 };
+    xfade.prep = p;
+    try {
+      t.preload = 'auto';
+      if (a.crossOrigin) t.crossOrigin = a.crossOrigin;
+      t.volume = 0;
+      t.playbackRate = a.playbackRate;
+      if ('preservesPitch' in a) t.preservesPitch = a.preservesPitch;
+      if (a.sinkId && typeof t.setSinkId === 'function') t.setSinkId(a.sinkId).catch(() => {});
+      t.addEventListener('loadedmetadata', () => { try { t.currentTime = point; } catch (e) {} }, { once: true });
+      t.addEventListener('seeked', () => { if (xfade.prep === p) p.ready = true; }, { once: true });
+      t.addEventListener('error', () => { if (xfade.prep === p) dropCrossfadePrep(); }, { once: true });
+      t.src = a.currentSrc;
+    } catch (e) { dropCrossfadePrep(); return; }
+    // timeupdate comes only every quarter second or so: a timer starts the overlap on time
+    const arm = () => {
+      clearTimeout(p.timer);
+      const wait = Math.max(0, ((point - (a.currentTime || 0)) / (a.playbackRate || 1)) * 1000);
+      p.timer = setTimeout(() => {
+        if (xfade.prep !== p) return;
+        if ((a.currentTime || 0) < point - 0.03) { arm(); return; }
+        startCrossfade();
+      }, wait);
+    };
+    arm();
+  }
+  // the main player is at the point: the tail takes over the old song, the main player goes on to the next one
+  function startCrossfade() {
+    const a = el.nativeAudio;
+    const p = xfade.prep;
+    if (!p || p.started) return;
+    p.started = true;
+    clearTimeout(p.timer);
+    const fallback = () => {
+      if (xfade.prep === p) dropCrossfadePrep();
+      if (p.token !== state.loadToken || a.paused || crossfadeTriggered) return;
+      // the plain fade-out of #22: the song still plays to its end, the next one starts on 'ended'
+      crossfadeTriggered = true;
+      if (audioEngine) audioEngine.fadeOut(Math.max(0.3, (p.end - a.currentTime) / (a.playbackRate || 1)));
+    };
+    if (!p.ready || p.token !== state.loadToken || a.paused || state.isRepeat || queueFinished()) { fallback(); return; }
+    const t = p.el;
+    const level = tailLevel();
+    try { t.currentTime = Math.min(p.end, a.currentTime + 0.02); } catch (e) {}
+    t.volume = 0; // silent until the main player lets go, or the two would play the same seconds twice
+    const played = t.play();
+    Promise.resolve(played).then(() => {
+      if (xfade.prep !== p || p.token !== state.loadToken || a.paused) { if (xfade.prep === p) dropCrossfadePrep(); else disposeTailEl(t); return; }
+      xfade.prep = null;
+      stopCrossfadeTail(0);
+      t.volume = level;
+      const tail = { el: t, end: p.end, point: p.point, level, loop: 0 };
+      xfade.tail = tail;
+      // fade out along the song's own time, so a pause holds the fade where it is
+      tail.loop = setInterval(() => {
+        if (xfade.tail !== tail) { clearInterval(tail.loop); return; }
+        const cur = t.currentTime || 0;
+        if (t.ended || cur >= tail.end - 0.02) { stopCrossfadeTail(0); return; }
+        try { t.volume = tail.level * window.MurielTrim.fadeOutGain((cur - tail.point) / (tail.end - tail.point)); } catch (e) {}
+      }, 40);
+      crossfadeFadeInPending = true;
+      xfade.handingOver = true;
+      state._isNaturalEnding = true;
+      try { playNext(); } finally { state._isNaturalEnding = false; xfade.handingOver = false; }
+    }, () => fallback());
+  }
+  // the next song fades in while the tail fades out: through the engine on computers, the volume on phones
+  function crossfadeFadeIn() {
+    const X = crossfadeSeconds();
+    const secs = Math.max(0.5, crossfadeTailRemaining() || X / 2);
+    if (!isPhoneApp) { if (X > 0 && audioEngine) audioEngine.fadeIn(secs); return; }
+    if (!elementVolumeWorks()) return;
+    const a = el.nativeAudio;
+    const started = performance.now();
+    cancelAnimationFrame(xfade.fadeInRaf);
+    const tick = () => {
+      const p = (performance.now() - started) / (secs * 1000);
+      try { a.volume = p >= 1 ? 1 : window.MurielTrim.fadeInGain(p); } catch (e) {}
+      if (p < 1) xfade.fadeInRaf = requestAnimationFrame(tick);
+    };
+    // a timer, not only frames: a phone with the screen off draws none
+    const timer = setInterval(() => { if (performance.now() - started > secs * 1000) { clearInterval(timer); try { a.volume = 1; } catch (e) {} } }, 250);
+    tick();
+  }
+  // anything but the crossfade itself starting a song (a skip, a pick, Previous) ends the tail quickly
+  function crossfadeOnTrackChange() {
+    dropCrossfadePrep();
+    if (xfade.handingOver) {
+      // the next song starts silent and fades in once it plays ('playing' -> crossfadeFadeIn)
+      if (isPhoneApp && elementVolumeWorks()) { try { el.nativeAudio.volume = 0; } catch (e) {} }
+      else if (audioEngine && audioEngine.masterGain && audioEngine.ctx) {
+        try { audioEngine.masterGain.gain.cancelScheduledValues(audioEngine.ctx.currentTime); audioEngine.masterGain.gain.setValueAtTime(0.001, audioEngine.ctx.currentTime); } catch (e) {}
+      }
+      return;
+    }
+    stopCrossfadeTail(0.25);
+    cancelAnimationFrame(xfade.fadeInRaf);
+    // a song that ended after the plain fade-out still fades the next one in ('ended' set it)
+    if (state._isNaturalEnding) return;
+    crossfadeFadeInPending = false;
+    if (isPhoneApp && elementVolumeWorks()) { try { el.nativeAudio.volume = 1; } catch (e) {} }
+  }
   let currentAlbumPlayRunId = 0;
 
   function pushPlayHistory(track) {
@@ -3599,6 +3771,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (context !== 'album') currentAlbumPlayRunId++;
     cancelEndFade();
+    crossfadeOnTrackChange();
     state.nextTrackPrefetched = false;
     initAudioContext();
     el.nativeAudio.preload = 'auto';
@@ -5944,6 +6117,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     sendStateToServer();
     updateMediaSession();
+    // a pause during a crossfade holds the old song's tail too (the fade follows its time, so it resumes in place)
+    dropCrossfadePrep();
+    if (xfade.tail) { try { xfade.tail.el.pause(); } catch (e) {} }
 
     const audio = el.nativeAudio;
     if (isAppClosing || !audio || audio.paused) {
@@ -6000,6 +6176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sendStateToServer();
     updateMediaSession();
 
+    if (xfade.tail && xfade.tail.el.paused) resumeCrossfadeTail();
     initAudioContext();
     if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
       // in a backgrounded WebView resume() can hang until the app is opened; don't let it hold play() back (#24).
@@ -6328,8 +6505,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (crossfadeFadeInPending) {
         crossfadeFadeInPending = false;
-        const X = parseInt(localStorage.getItem('muriel_crossfade') || '0', 10);
-        if (X > 0 && audioEngine) audioEngine.fadeIn(X / 2);
+        crossfadeFadeIn();
       }
       sendStateToServer();
       updateMediaSession();
@@ -6459,14 +6635,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Crossfade (off by default): fade the song out over its last X seconds while it keeps playing; the
       // 'ended' handler starts the next one, which fades in. This used to skip to the next song X seconds before
       // the end, which cut every song short by the crossfade length (#22).
-      const X = parseInt(localStorage.getItem('muriel_crossfade') || '0', 10);
+      // With overlap (#29) the last X seconds move to a second player that plays them to the end while the next
+      // song starts (prepareCrossfade); the song itself is never cut short.
+      const X = crossfadeSeconds();
       if (X > 0 && !crossfadeTriggered && !state.isRepeat && !el.nativeAudio.paused && audioEngine && !audioEngine.isLiveStream(el.nativeAudio) && window.MurielTrim) {
         const trim = state.currentTrack ? getTrackTrim(state.currentTrack) : null;
         const end = window.MurielTrim.isActive(trim) ? Math.min(trim.end, dur) : dur;
-        const fade = window.MurielTrim.endFadeSeconds(cur, end, X, el.nativeAudio.playbackRate);
-        if (fade > 0) {
-          crossfadeTriggered = true;
-          audioEngine.fadeOut(fade);
+        const sleepAtEnd = state.sleepTimer && state.sleepTimer.mode === 'end';
+        const step = !sleepAtEnd && canOverlap(el.nativeAudio) && !queueFinished() ? window.MurielTrim.crossfadeStep(cur, end, X, el.nativeAudio.playbackRate) : null;
+        if (step && !xfade.prep) {
+          prepareCrossfade(window.MurielTrim.crossfadePoint(end, X), end);
+        } else if (!step && !xfade.prep) {
+          const fade = window.MurielTrim.endFadeSeconds(cur, end, X, el.nativeAudio.playbackRate);
+          if (fade > 0) {
+            crossfadeTriggered = true;
+            audioEngine.fadeOut(fade);
+          }
         }
       }
 
@@ -15621,7 +15805,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!el.downloadBtnText) return;
     if (downloadBatch) {
       const count = downloadBatch.tracks.length;
-      el.downloadBtnText.textContent = `Download ${count} track${count === 1 ? '' : 's'}`;
+      el.downloadBtnText.textContent = downloadBatch.retry ? Tf('Retry failed ({0})', count) : `Download ${count} track${count === 1 ? '' : 's'}`;
     } else {
       el.downloadBtnText.textContent = `Download ${selectedFormat.toUpperCase()}`;
     }
@@ -15894,52 +16078,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     return new Blob([arrayBuffer], { type: 'audio/wav' });
   }
 
+  // which of `tracks` are already in the Downloads folder (the offline cache doesn't count): an array of booleans
+  async function downloadedInFolder(tracks) {
+    const out = [];
+    for (let i = 0; i < tracks.length; i += 500) {
+      const res = await fetch(`http://127.0.0.1:${state.serverPort}/api/downloaded-status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filesOnly: true, tracks: tracks.slice(i, i + 500).map((t) => ({ title: t.title || '', artist: t.artist || '', id: String(t.id || '') })) }),
+      });
+      const data = await res.json();
+      if (!data || !data.success || !Array.isArray(data.downloaded)) throw new Error('downloaded-status failed');
+      out.push(...data.downloaded.map(Boolean));
+    }
+    return out;
+  }
+
   if (el.btnConfirmDownload) {
     el.btnConfirmDownload.addEventListener('click', async () => {
       if (downloadBatch) {
         const batch = downloadBatch;
-        const tracks = batch.tracks;
         el.btnConfirmDownload.disabled = true;
-        let done = 0;
-        let failed = 0;
         let lastDir = null;
         // Cancel/X used to only hide the dialog while every song kept downloading
         const batchAbort = new AbortController();
         downloadAbort = batchAbort;
-        for (let i = 0; i < tracks.length; i++) {
-          if (batchAbort.signal.aborted) break;
-          const t = tracks[i];
-          if (el.downloadBtnText) el.downloadBtnText.textContent = `Downloading ${i + 1}/${tracks.length}`;
-          if (typeof batch.onProgress === 'function') batch.onProgress(i, tracks.length);
-          try {
-            // an album's songs are found on YouTube first (the file keeps the album's title and artist)
-            let src = t;
-            if (typeof batch.resolve === 'function') {
-              const found = await batch.resolve(t).catch(() => null);
-              if (batchAbort.signal.aborted) break;
-              if (found && found.url) src = { ...t, url: found.url, id: found.id || t.id };
-            }
-            const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(src.url || '')}&id=${encodeURIComponent(src.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}`;
-            const res = await fetch(downloadUrl, { signal: batchAbort.signal });
-            const text = await res.text();
-            let data;
-            try {
-              data = JSON.parse(text);
-            } catch (e) {
-              throw new Error(text || 'server error');
-            }
-            if (!data.success) throw new Error(data.error || 'Failed to download');
-            done++;
-            if (data.directory) lastDir = data.directory;
-          } catch (err) {
-            if (batchAbort.signal.aborted) break;
-            failed++;
-            console.error('Download failed:', t.title || t.url || '', err.message);
+        const total = batch.tracks.length;
+        // songs already in the Downloads folder aren't downloaded again (#29)
+        const present = await downloadedInFolder(batch.tracks).catch(() => null);
+        const tracks = present ? batch.tracks.filter((_, i) => !present[i]) : batch.tracks;
+        const skipped = total - tracks.length;
+        const setProgress = (p) => {
+          if (el.downloadBtnText) el.downloadBtnText.textContent = Tf('Downloading {0}/{1}', Math.min(tracks.length, p.done + p.failed + 1), tracks.length) + (p.failed ? ` · ${Tf('{0} failed', p.failed)}` : '');
+          if (typeof batch.onProgress === 'function') batch.onProgress(p.done + p.failed, tracks.length);
+        };
+        setProgress({ done: 0, failed: 0 });
+        const downloadOne = async (t, { fresh }) => {
+          // an album's songs are found on YouTube first (the file keeps the album's title and artist)
+          let src = t;
+          if (typeof batch.resolve === 'function') {
+            const found = await batch.resolve(t).catch(() => null);
+            if (found && found.url) src = { ...t, url: found.url, id: found.id || t.id };
           }
-        }
+          const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(src.url || '')}&id=${encodeURIComponent(src.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}${fresh ? '&fresh=1' : ''}`;
+          const res = await fetch(downloadUrl, { signal: batchAbort.signal });
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch (e) { throw Object.assign(new Error(text || 'server error'), { status: res.status }); }
+          if (!data.success) throw Object.assign(new Error(data.error || 'Failed to download'), { status: res.status });
+          if (data.directory) lastDir = data.directory;
+        };
+        const result = tracks.length ? await window.MurielDownloadBatch.runDownloadBatch(tracks, downloadOne, {
+          concurrency: 2, signal: batchAbort.signal, onProgress: setProgress,
+        }) : { done: [], failed: [], aborted: batchAbort.signal.aborted };
+        for (const f of result.failed) console.error('Download failed:', f.item.title || f.item.url || '', f.error && f.error.message);
+        const done = result.done.length;
+        const failedTracks = result.failed.map((f) => f.item);
         el.btnConfirmDownload.disabled = false;
         if (downloadAbort === batchAbort) downloadAbort = null;
-        if (typeof batch.onDone === 'function') batch.onDone(done, tracks.length);
+        if (typeof batch.onDone === 'function') batch.onDone(done + skipped, total);
         // on phones the server answers with the app's internal path (/data/Downloads); name the real folder
         if (isPhoneApp && lastDir) {
           try { lastDir = (await window.electronAPI.getDownloadDir()).dir || lastDir; } catch (e) {}
@@ -15949,9 +16145,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (done) showToast(lastDir ? Tm('Stopped. {0} of {1} songs were downloaded to {2}', done, tracks.length, lastDir) : Tm('Stopped. {0} of {1} songs were downloaded', done, tracks.length), 'info');
           return;
         }
+        const summary = [Tf('{0} downloaded', done)];
+        if (skipped) summary.push(Tf('{0} already downloaded', skipped));
+        if (failedTracks.length) summary.push(Tf('{0} failed', failedTracks.length));
+        if (failedTracks.length) {
+          // the dialog stays open with the summary; its button now retries just the failed songs
+          downloadBatch = { ...batch, tracks: failedTracks, retry: true };
+          if (el.downloadPreviewArtist) el.downloadPreviewArtist.textContent = summary.join(' · ');
+          updateDownloadBtnLabel();
+          showToast(Tm('Downloaded {0}/{1} ({2} failed)', done + skipped, total, failedTracks.length), 'error');
+          return;
+        }
         downloadBatch = null;
         if (el.downloadModal) closeModal(el.downloadModal);
-        showToast(failed > 0 ? Tm('Downloaded {0}/{1} ({2} failed)', done, tracks.length, failed) : lastDir ? Tm('Downloaded {0} tracks to {1}', tracks.length, lastDir) : Tm('Downloaded {0} tracks', tracks.length), failed > 0 ? 'error' : 'success');
+        showToast(lastDir ? Tm('Downloaded {0} tracks to {1}', done, lastDir) + (skipped ? ` (${summary.slice(1).join(', ')})` : '') : summary.join(' · '), 'success');
         return;
       }
       if (!trackToDownload) return;
