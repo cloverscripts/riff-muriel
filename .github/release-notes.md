@@ -1,4 +1,4 @@
-## Muriel 1.3.9
+## Muriel 1.3.10
 
 **Downloads**
 - **iPhone:** [ios-latest](https://github.com/cloverscripts/riff-muriel/releases/tag/ios-latest) (`Muriel.ipa`, install with SideStore, AltStore or Sideloadly). Needs iOS 16.2 or newer
@@ -8,8 +8,14 @@
 - **Linux:** `.AppImage` below (needs FUSE 2: `fuse2` / `libfuse2`)
 
 Or get it from the website: https://cloverscripts.github.io/riff-muriel/
+**Fixed**
+- **Artist page:** the line under Songs/Albums is a faint divider instead of a dark stripe on bright wallpapers.
+- **No sideways scrolling** in playlists and Favorites.
+- **Seek bar:** no longer breaks when it was hidden, and it shrinks instead of pushing the player bar wider.
+- **Artist bios:** a Wikipedia summary that doesn't mention the artist isn't shown.
+- **Windows:** setting up ffmpeg unpacks its download more reliably.
 
-**New**
+**New in 1.3.9**
 - **Download a whole album** from its page, with progress; songs you already have are skipped. Thanks to Dandeleah!
 - **Sorting:** Albums (recent, title, artist, year), Playlists (custom, name, most songs) and Artists (recent, name, most played). Muriel remembers your choice.
 - **Better recommendations:** My Wave and the Daily Mixes now use YouTube Music radio and Last.fm similar songs, skip what you just heard, and tidy up video titles.
@@ -21,7 +27,7 @@ Or get it from the website: https://cloverscripts.github.io/riff-muriel/
 - **Mac:** native window buttons, the Dock icon reopens Muriel, and songs start much faster.
 - Covers that won't load fall back to Apple Music artwork (computers).
 
-**Fixed**
+**Fixed in 1.3.9**
 - **iPhone:** music resumes after another app's sound ends, and the lock screen / Control Center shows the right play state, progress and speed. (#26)
 - **Android:** the play/pause notification shows on Android 13 and newer; Muriel asks for notification permission once. (#25)
 - **Phones:** pressing play from outside the app after a pause works again. (#24)
