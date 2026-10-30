@@ -71,3 +71,30 @@ test('the timeupdate handler never starts the next song itself', () => {
   assert.ok(!/playNext\(/.test(body), 'only the ended handler (or a trim end) may advance');
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="slider-crossfade"[^>]*value="0"/);
 });
+
+test('crossfade with overlap: the next song starts X seconds before the end, the old one plays out on a second player', () => {
+  assert.strictEqual(T.crossfadePoint(200, 8), 192);
+  assert.strictEqual(T.crossfadePoint(12, 8), null, 'too short to overlap');
+  assert.strictEqual(T.crossfadePoint(200, 0), null);
+  assert.strictEqual(T.crossfadeStep(100, 200, 8, 1), null);
+  assert.strictEqual(T.crossfadeStep(188.5, 200, 8, 1), 'prepare');
+  assert.strictEqual(T.crossfadeStep(184.5, 200, 8, 2), 'prepare', 'a faster song prepares earlier in song time');
+  assert.strictEqual(T.crossfadeStep(192, 200, 8, 1), 'start');
+  assert.strictEqual(T.crossfadeStep(200, 200, 8, 1), null, 'over already');
+  // equal power: the two curves keep the sum of squares at 1
+  for (const p of [0, 0.25, 0.5, 0.9, 1]) assert.ok(Math.abs(T.fadeOutGain(p) ** 2 + T.fadeInGain(p) ** 2 - 1) < 1e-9);
+  assert.strictEqual(T.fadeOutGain(0), 1);
+  assert.ok(T.fadeOutGain(1) < 1e-9);
+  assert.strictEqual(T.fadeInGain(-1), 0);
+});
+
+test('the crossfade hands over only after the old song is playing on its tail player', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const start = src.indexOf('function startCrossfade(');
+  const body = src.slice(start, src.indexOf('function crossfadeFadeIn(', start));
+  assert.ok(start > 0);
+  assert.ok(body.indexOf('t.play()') < body.indexOf('playNext()'), 'tail plays first');
+  assert.ok(body.indexOf('.then(') < body.indexOf('playNext()'), 'and the next song starts once it does');
+});

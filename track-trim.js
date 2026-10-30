@@ -36,6 +36,26 @@
     return (end - time) / (rate > 0 ? rate : 1);
   }
 
+  // Crossfade with overlap (#29): the second (in song time) at which the next song starts while this one plays
+  // its last `fade` seconds on a second player, fading out up to `end`; null when the song is too short for it
+  function crossfadePoint(end, fade) {
+    return fade > 0 && Number.isFinite(end) && end > fade * 2 ? end - fade : null;
+  }
+
+  // what to do at playback `time`: 'prepare' (open the second player at the point, `lead` seconds ahead),
+  // 'start' (hand over now), or null
+  function crossfadeStep(time, end, fade, rate, lead = 4) {
+    const point = crossfadePoint(end, fade);
+    if (point === null || !Number.isFinite(time) || time >= end) return null;
+    if (time >= point) return 'start';
+    if (time >= point - lead * (rate > 0 ? rate : 1)) return 'prepare';
+    return null;
+  }
+
+  // equal-power curves for progress p (0..1) through the fade: the two together keep the loudness steady
+  const fadeOutGain = (p) => Math.cos(Math.min(1, Math.max(0, Number(p) || 0)) * Math.PI / 2);
+  const fadeInGain = (p) => Math.sin(Math.min(1, Math.max(0, Number(p) || 0)) * Math.PI / 2);
+
   // "1:05.3"
   function formatPreciseTime(sec) {
     if (!Number.isFinite(sec) || sec < 0) sec = 0;
@@ -81,7 +101,7 @@
     return out;
   }
 
-  const api = { normalizeTrim, isActive, trimAction, endFadeSeconds, formatPreciseTime, wavePeaks, placeholderPeaks, MIN_KEEP };
+  const api = { normalizeTrim, isActive, trimAction, endFadeSeconds, crossfadePoint, crossfadeStep, fadeOutGain, fadeInGain,formatPreciseTime, wavePeaks, placeholderPeaks, MIN_KEEP };
   if (typeof module !== 'undefined') module.exports = api;
   else window.MurielTrim = api;
 })();
