@@ -3137,7 +3137,11 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
   // songs were downloaded again, and a cancelled download kept running next to its retry.
   if (STREAM_VIA_CACHE && !isRaw) {
     const cacheId = cleanId || cleanTrackId(`dl_${crypto.createHash('sha1').update(`${cleanArtist}|${cleanTitle}`).digest('hex').slice(0, 12)}`);
-    if (!await findCachedFile(cacheId)) await downloadTrackToDisk(targetUrl, cacheId, 'youtube', { title, artist });
+    // a download the listener asked for runs at 'normal' priority: as 'background' a song that had failed once
+    // (YouTube refusing a long "Download all", #29) was skipped without a try for the next minutes, so retrying
+    // it failed at once. A retry (fresh=1) also forgets that failure.
+    if (/[?&]fresh=1(&|$)/.test(req.url || '')) ytdlpQueue.forget(`dl:${cacheId}`);
+    if (!await findCachedFile(cacheId)) await downloadTrackToDisk(targetUrl, cacheId, 'youtube', { title, artist }, 'normal');
     const cached = await findCachedFile(cacheId);
     if (!cached) return sendDownloadResponse(500, { success: false, error: STREAM_FAILED });
     const savedName = `${cleanArtist} - ${cleanTitle}${path.extname(cached)}`;
@@ -3252,7 +3256,7 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
   args.push('--', targetUrl);
 
   try {
-    await executeYtDlp(args, 60000, { onChild: c => { child = c; }, reason: 'download' });
+    await executeYtDlp(args, 180000, { onChild: c => { child = c; }, reason: 'download' });
     if (!isRaw) {
       await cleanupDownloadArtifacts(downloadsDir, beforeFiles, baseName, videoId, ext, true);
       downloadsIndex = null;
@@ -3289,7 +3293,7 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
       }
       fallbackArgs.push('--', targetUrl);
 
-      await executeYtDlp(fallbackArgs, 60000, { onChild: c => { child = c; }, reason: 'download-fallback' });
+      await executeYtDlp(fallbackArgs, 180000, { onChild: c => { child = c; }, reason: 'download-fallback' });
       if (!isRaw) {
         await cleanupDownloadArtifacts(downloadsDir, beforeFiles, baseName, videoId, ext, true);
         downloadsIndex = null;
@@ -6461,6 +6465,8 @@ const server = http.createServer(guardHandler(async (req, res) => {
           const title = typeof t.title === 'string' ? t.title : '';
           const artist = typeof t.artist === 'string' ? t.artist : '';
           if ((title || artist) && await findDownloadedFile(title, artist)) return true;
+          // "Download all" (#29) only skips songs that are in the Downloads folder, not ones merely cached
+          if (payload.filesOnly) return false;
           const id = cleanTrackId(typeof t.id === 'string' ? t.id : '');
           return !!(id && await findCachedFile(id));
         }));

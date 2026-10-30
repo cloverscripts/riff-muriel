@@ -15582,7 +15582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!el.downloadBtnText) return;
     if (downloadBatch) {
       const count = downloadBatch.tracks.length;
-      el.downloadBtnText.textContent = `Download ${count} track${count === 1 ? '' : 's'}`;
+      el.downloadBtnText.textContent = downloadBatch.retry ? Tf('Retry failed ({0})', count) : `Download ${count} track${count === 1 ? '' : 's'}`;
     } else {
       el.downloadBtnText.textContent = `Download ${selectedFormat.toUpperCase()}`;
     }
@@ -15855,52 +15855,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     return new Blob([arrayBuffer], { type: 'audio/wav' });
   }
 
+  // which of `tracks` are already in the Downloads folder (the offline cache doesn't count): an array of booleans
+  async function downloadedInFolder(tracks) {
+    const out = [];
+    for (let i = 0; i < tracks.length; i += 500) {
+      const res = await fetch(`http://127.0.0.1:${state.serverPort}/api/downloaded-status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filesOnly: true, tracks: tracks.slice(i, i + 500).map((t) => ({ title: t.title || '', artist: t.artist || '', id: String(t.id || '') })) }),
+      });
+      const data = await res.json();
+      if (!data || !data.success || !Array.isArray(data.downloaded)) throw new Error('downloaded-status failed');
+      out.push(...data.downloaded.map(Boolean));
+    }
+    return out;
+  }
+
   if (el.btnConfirmDownload) {
     el.btnConfirmDownload.addEventListener('click', async () => {
       if (downloadBatch) {
         const batch = downloadBatch;
-        const tracks = batch.tracks;
         el.btnConfirmDownload.disabled = true;
-        let done = 0;
-        let failed = 0;
         let lastDir = null;
         // Cancel/X used to only hide the dialog while every song kept downloading
         const batchAbort = new AbortController();
         downloadAbort = batchAbort;
-        for (let i = 0; i < tracks.length; i++) {
-          if (batchAbort.signal.aborted) break;
-          const t = tracks[i];
-          if (el.downloadBtnText) el.downloadBtnText.textContent = `Downloading ${i + 1}/${tracks.length}`;
-          if (typeof batch.onProgress === 'function') batch.onProgress(i, tracks.length);
-          try {
-            // an album's songs are found on YouTube first (the file keeps the album's title and artist)
-            let src = t;
-            if (typeof batch.resolve === 'function') {
-              const found = await batch.resolve(t).catch(() => null);
-              if (batchAbort.signal.aborted) break;
-              if (found && found.url) src = { ...t, url: found.url, id: found.id || t.id };
-            }
-            const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(src.url || '')}&id=${encodeURIComponent(src.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}`;
-            const res = await fetch(downloadUrl, { signal: batchAbort.signal });
-            const text = await res.text();
-            let data;
-            try {
-              data = JSON.parse(text);
-            } catch (e) {
-              throw new Error(text || 'server error');
-            }
-            if (!data.success) throw new Error(data.error || 'Failed to download');
-            done++;
-            if (data.directory) lastDir = data.directory;
-          } catch (err) {
-            if (batchAbort.signal.aborted) break;
-            failed++;
-            console.error('Download failed:', t.title || t.url || '', err.message);
+        const total = batch.tracks.length;
+        // songs already in the Downloads folder aren't downloaded again (#29)
+        const present = await downloadedInFolder(batch.tracks).catch(() => null);
+        const tracks = present ? batch.tracks.filter((_, i) => !present[i]) : batch.tracks;
+        const skipped = total - tracks.length;
+        const setProgress = (p) => {
+          if (el.downloadBtnText) el.downloadBtnText.textContent = Tf('Downloading {0}/{1}', Math.min(tracks.length, p.done + p.failed + 1), tracks.length) + (p.failed ? ` · ${Tf('{0} failed', p.failed)}` : '');
+          if (typeof batch.onProgress === 'function') batch.onProgress(p.done + p.failed, tracks.length);
+        };
+        setProgress({ done: 0, failed: 0 });
+        const downloadOne = async (t, { fresh }) => {
+          // an album's songs are found on YouTube first (the file keeps the album's title and artist)
+          let src = t;
+          if (typeof batch.resolve === 'function') {
+            const found = await batch.resolve(t).catch(() => null);
+            if (found && found.url) src = { ...t, url: found.url, id: found.id || t.id };
           }
-        }
+          const downloadUrl = `http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(src.url || '')}&id=${encodeURIComponent(src.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}${fresh ? '&fresh=1' : ''}`;
+          const res = await fetch(downloadUrl, { signal: batchAbort.signal });
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch (e) { throw Object.assign(new Error(text || 'server error'), { status: res.status }); }
+          if (!data.success) throw Object.assign(new Error(data.error || 'Failed to download'), { status: res.status });
+          if (data.directory) lastDir = data.directory;
+        };
+        const result = tracks.length ? await window.MurielDownloadBatch.runDownloadBatch(tracks, downloadOne, {
+          concurrency: 2, signal: batchAbort.signal, onProgress: setProgress,
+        }) : { done: [], failed: [], aborted: batchAbort.signal.aborted };
+        for (const f of result.failed) console.error('Download failed:', f.item.title || f.item.url || '', f.error && f.error.message);
+        const done = result.done.length;
+        const failedTracks = result.failed.map((f) => f.item);
         el.btnConfirmDownload.disabled = false;
         if (downloadAbort === batchAbort) downloadAbort = null;
-        if (typeof batch.onDone === 'function') batch.onDone(done, tracks.length);
+        if (typeof batch.onDone === 'function') batch.onDone(done + skipped, total);
         // on phones the server answers with the app's internal path (/data/Downloads); name the real folder
         if (isPhoneApp && lastDir) {
           try { lastDir = (await window.electronAPI.getDownloadDir()).dir || lastDir; } catch (e) {}
@@ -15910,9 +15922,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (done) showToast(lastDir ? Tm('Stopped. {0} of {1} songs were downloaded to {2}', done, tracks.length, lastDir) : Tm('Stopped. {0} of {1} songs were downloaded', done, tracks.length), 'info');
           return;
         }
+        const summary = [Tf('{0} downloaded', done)];
+        if (skipped) summary.push(Tf('{0} already downloaded', skipped));
+        if (failedTracks.length) summary.push(Tf('{0} failed', failedTracks.length));
+        if (failedTracks.length) {
+          // the dialog stays open with the summary; its button now retries just the failed songs
+          downloadBatch = { ...batch, tracks: failedTracks, retry: true };
+          if (el.downloadPreviewArtist) el.downloadPreviewArtist.textContent = summary.join(' · ');
+          updateDownloadBtnLabel();
+          showToast(Tm('Downloaded {0}/{1} ({2} failed)', done + skipped, total, failedTracks.length), 'error');
+          return;
+        }
         downloadBatch = null;
         if (el.downloadModal) closeModal(el.downloadModal);
-        showToast(failed > 0 ? Tm('Downloaded {0}/{1} ({2} failed)', done, tracks.length, failed) : lastDir ? Tm('Downloaded {0} tracks to {1}', tracks.length, lastDir) : Tm('Downloaded {0} tracks', tracks.length), failed > 0 ? 'error' : 'success');
+        showToast(lastDir ? Tm('Downloaded {0} tracks to {1}', done, lastDir) + (skipped ? ` (${summary.slice(1).join(', ')})` : '') : summary.join(' · '), 'success');
         return;
       }
       if (!trackToDownload) return;
