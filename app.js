@@ -3787,9 +3787,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!skipUnplayable(currentToken, track)) showToast(Tm('Could not play this song. Try again or skip.'), 'error');
       });
     } else {
-      el.nativeAudio.src = data.streamUrl;
+      // #17: a YouTube media URL is bound to the player client yt-dlp resolved it with; Chromium fetching it
+      // with its own headers got "Format error" (code 4). On desktop it plays through the local proxy,
+      // which fetches with yt-dlp's headers; the direct URL stays as a fallback.
+      const src = pickStreamSrc(data);
+      proxyFallback = src !== data.streamUrl ? null : { token: currentToken, track, url: data.proxyUrl || '' };
+      el.nativeAudio.src = src;
       playSmooth();
     }
+    return true;
+  }
+
+  function isGoogleVideoUrl(u) {
+    try { const h = new URL(u).hostname; return h === 'googlevideo.com' || h.endsWith('.googlevideo.com'); } catch (e) { return false; }
+  }
+  // the src the audio element gets for a /api/stream-info answer (same rule as stream-source.js): phones
+  // play downloaded files and keep the URL they were given
+  function pickStreamSrc(data) {
+    const isMobile = !!(window.electronAPI && window.electronAPI.isMobile);
+    if (!isMobile && !data.isHls && !data.isLocal && data.proxyUrl && isGoogleVideoUrl(data.streamUrl)) return data.proxyUrl;
+    return data.streamUrl;
+  }
+  // a direct (not proxied) stream that failed to load is tried once through the local proxy before a fresh lookup
+  let proxyFallback = null;
+  function tryProxyFallback(token, track) {
+    const fb = proxyFallback;
+    proxyFallback = null;
+    if (!fb || !fb.url || fb.token !== token || token !== state.loadToken || fb.track !== track || track !== state.currentTrack) return false;
+    if (window.electronAPI && window.electronAPI.isMobile) return false;
+    const me = el.nativeAudio.error;
+    if (!me || (me.code !== 4 && me.code !== 2)) return false;
+    console.warn('Track playback: direct stream failed, trying the local proxy');
+    el.nativeAudio.src = fb.url;
+    playSmooth();
     return true;
   }
 
@@ -6224,6 +6254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       logPlaybackIssue('Audio element error', null);
       state.isPlaying = false;
       document.body.classList.remove('is-playing');
+      if (tryProxyFallback(state.loadToken, state.currentTrack)) return;
       if (retryFresh(state.loadToken, state.currentTrack)) return;
       updatePlayPauseButton(false, false);
       if (skipUnplayable(state.loadToken, state.currentTrack)) return;

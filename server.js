@@ -21,8 +21,18 @@ const recommendCore = require('./recommend-core');
 const { createTaskQueue, lowerPriority } = require('./ytdlp-queue');
 const { searchSoundcloudApi } = require('./soundcloud-search');
 const { copyStreamToCache } = require('./cache-copy');
+const streamSource = require('./stream-source');
+// request headers yt-dlp would use for each media URL it resolved (#17), for the audio proxy
+const streamHeaders = new Map();
+function rememberStreamHeaders(url, headers) {
+  if (!url || !headers) return;
+  streamHeaders.delete(url);
+  streamHeaders.set(url, headers);
+  while (streamHeaders.size > 200) streamHeaders.delete(streamHeaders.keys().next().value);
+}
 // MURIEL_DEBUG_YTDLP=1 logs every yt-dlp run with its reason and arguments
 const YTDLP_DEBUG = !!process.env.MURIEL_DEBUG_YTDLP;
+const AUDIO_PROXY_DEBUG = YTDLP_DEBUG || process.env.MURIEL_DEBUG === '1';
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const SAFE_MEDIA_URL = /^https?:\/\//i;
@@ -1755,22 +1765,15 @@ async function prefetchTrack(trackUrl, trackId, platform, meta = null, priority 
     const target = youtubeExtractTarget(trackUrl, cleanId, platform);
     trackUrl = target.url;
     if (!isSafeMediaUrl(trackUrl)) return;
-    const args = [
-      '--no-config',
-      '-g',
-      '--no-warnings',
-      '--no-playlist',
-      '--prefer-free-formats',
-      '-f',
-      'bestaudio/best'
-    ];
+    const args = ['--no-config', ...streamSource.LOOKUP_PRINT_ARGS, '--no-warnings', '--no-playlist', '--prefer-free-formats', '-f', 'bestaudio/best'];
     if (target.youtube) args.push('--extractor-args', YT_PLAYER_CLIENTS);
     args.push('--', trackUrl);
 
-    // the same lookup as /api/stream-info: if the song is started meanwhile, it waits for this run
+    // the same lookup (same arguments and key) as /api/stream-info: if the song is started meanwhile, it waits for this run
     const raw = await executeYtDlp(args, 18000, { key: `g:${trackUrl}`, priority, reason: 'prefetch' });
-    const lines = raw.trim().split('\n').filter(l => l.startsWith('http'));
-    const streamUrl = lines[0];
+    const found = streamSource.parseLookup(raw);
+    const streamUrl = found.url;
+    rememberStreamHeaders(streamUrl, found.headers);
 
     if (streamUrl) {
       const isHls = streamUrl.includes('.m3u8');
@@ -2371,12 +2374,12 @@ async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube
 
   if (isSafeMediaUrl(trackUrl)) {
     try {
-      const args = ['--no-config', '-g', '--no-warnings', '--no-playlist', '--prefer-free-formats', '-f', 'bestaudio/best'];
+      const args = ['--no-config', ...streamSource.LOOKUP_PRINT_ARGS, '--no-warnings', '--no-playlist', '--prefer-free-formats', '-f', 'bestaudio/best'];
       if (ytTarget.youtube) args.push('--extractor-args', YT_PLAYER_CLIENTS);
       args.push('--', trackUrl);
       const raw = await executeYtDlp(args, 25000, { key: `g:${trackUrl}`, priority: 'play', reason: 'stream' });
-      const lines = raw.trim().split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
-      if (lines.length > 0) streamUrl = lines[0];
+      const found = streamSource.parseLookup(raw);
+      if (found.url) { streamUrl = found.url; rememberStreamHeaders(found.url, found.headers); }
     } catch (e) {
       try { logger.error('Stream resolve primary error: ' + (title || trackUrl), e); } catch (_) {}
     }
@@ -2385,8 +2388,10 @@ async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube
   if (!streamUrl && platform !== 'local' && (title || artist)) {
     for (const alt of await alternativeUploads(cleanId, title, artist, duration)) {
       try {
-        const raw = await executeYtDlp(['--no-config', '-g', '--no-warnings', '--no-playlist', '--prefer-free-formats', '-f', 'bestaudio/best', '--extractor-args', 'youtube:player_client=default,android', '--', alt], 18000, { key: `g:${alt}`, priority: 'play', reason: 'stream-alternative' });
-        streamUrl = raw.trim().split('\n').map(l => l.trim()).find(l => l.startsWith('http')) || null;
+        const raw = await executeYtDlp(['--no-config', ...streamSource.LOOKUP_PRINT_ARGS, '--no-warnings', '--no-playlist', '--prefer-free-formats', '-f', 'bestaudio/best', '--extractor-args', 'youtube:player_client=default,android', '--', alt], 18000, { key: `g:${alt}`, priority: 'play', reason: 'stream-alternative' });
+        const found = streamSource.parseLookup(raw);
+        streamUrl = found.url;
+        rememberStreamHeaders(found.url, found.headers);
         if (streamUrl) break;
       } catch (e) {
         try { logger.error('Stream resolve alternative error: ' + alt, e); } catch (_) {}
@@ -2736,61 +2741,74 @@ async function handleAudioProxy(req, res, targetUrl) {
       res.writeHead(405);
       return res.end('Method not allowed');
     }
-    const target = await publicAddressOf(parsed.hostname);
-    if (!target) {
-      res.writeHead(403);
-      return res.end('Blocked target');
-    }
-    const client = parsed.protocol === 'https:' ? https : http;
-
-    const forward = { host: parsed.host };
-    for (const key of ['range', 'accept', 'accept-language', 'user-agent']) {
-      if (req.headers[key] !== undefined) forward[key] = req.headers[key];
-    }
-
-    const proxyReq = client.request(targetUrl, {
-      // connect to the address checked above instead of resolving the name a second time
-      lookup: (hostname, opts, cb) => (opts && opts.all ? cb(null, [target]) : cb(null, target.address, target.family)),
-      method: req.method,
-      headers: forward
-    }, (proxyRes) => {
-      if (res.writableEnded) {
-        proxyRes.destroy();
-        return;
-      }
-      // a media URL YouTube now refuses must not be handed out again from the lookup cache: the next
-      // play (or a source switch) resolves the song afresh instead of reusing the dead link (#18)
-      if (proxyRes.statusCode === 403 || proxyRes.statusCode === 410) forgetStreamUrl(targetUrl);
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
-      proxyRes.on('error', () => { try { res.destroy(); } catch (e) {} });
-      proxyRes.pipe(res);
-    });
-
-    proxyReq.setTimeout(60000, () => {
-      proxyReq.destroy(new Error('Proxy timeout'));
-    });
-
+    // the headers yt-dlp resolved this URL with (#17): YouTube serves an android/tv client's stream only
+    // to a request that looks like that client, not to Chromium's own User-Agent
+    const ytHeaders = streamHeaders.get(targetUrl) || null;
+    const headers = streamSource.upstreamHeaders(req.headers, ytHeaders);
+    const host = (() => { try { return parsed.host; } catch (_) { return '?'; } })();
     let clientGone = false;
-    proxyReq.on('error', (e) => {
-      if (clientGone) return;
-      if (!res.headersSent) {
-        res.writeHead(502);
-        res.end('Proxy error');
-      } else {
-        try { res.destroy(); } catch (err) {}
-      }
-    });
-
-    // the player drops a request on every seek; without this the upstream download keeps its
-    // connection open until the 60s idle timeout
+    let proxyReq = null;
     res.on('close', () => {
+      // the player drops a request on every seek; without this the upstream download keeps its
+      // connection open until the 60s idle timeout
       if (res.writableFinished) return;
       clientGone = true;
-      try { proxyReq.destroy(); } catch (e) {}
+      try { if (proxyReq) proxyReq.destroy(); } catch (e) {}
     });
+    req.on('error', () => { try { if (proxyReq) proxyReq.destroy(); } catch (e) {} });
 
-    req.on('error', () => { try { proxyReq.destroy(); } catch (e) {} });
-    req.pipe(proxyReq);
+    const fail = (code, text) => {
+      if (clientGone) return;
+      if (!res.headersSent) { res.writeHead(code); res.end(text); } else { try { res.destroy(); } catch (err) {} }
+    };
+
+    // googlevideo answers some requests with a redirect to another rr server; follow it (each hop is
+    // checked like the first) instead of handing the audio element a redirect to a host it then fetches
+    // with its own headers
+    const fetchHop = async (hopUrl, hops) => {
+      let hopParsed;
+      try { hopParsed = new URL(hopUrl); } catch (e) { return fail(502, 'Bad redirect'); }
+      if (hopParsed.protocol !== 'http:' && hopParsed.protocol !== 'https:') return fail(502, 'Bad redirect');
+      const target = await publicAddressOf(hopParsed.hostname);
+      if (!target) return fail(403, 'Blocked target');
+      if (clientGone) return;
+      const client = hopParsed.protocol === 'https:' ? https : http;
+      proxyReq = client.request(hopUrl, {
+        // connect to the address checked above instead of resolving the name a second time
+        lookup: (hostname, opts, cb) => (opts && opts.all ? cb(null, [target]) : cb(null, target.address, target.family)),
+        method: req.method,
+        headers: { ...headers, host: hopParsed.host }
+      }, (proxyRes) => {
+        const status = proxyRes.statusCode;
+        if (res.writableEnded || clientGone) { proxyRes.destroy(); return; }
+        if ([301, 302, 303, 307, 308].includes(status) && proxyRes.headers.location && hops < 5) {
+          proxyRes.resume();
+          let next;
+          try { next = new URL(proxyRes.headers.location, hopUrl).toString(); } catch (e) { return fail(502, 'Bad redirect'); }
+          fetchHop(next, hops + 1).catch(() => fail(500, 'Proxy failed'));
+          return;
+        }
+        // what the stream answered, for #17-style reports: refusals always, everything with MURIEL_DEBUG(_YTDLP)
+        if (status >= 400 || AUDIO_PROXY_DEBUG) {
+          try { logger.log(status >= 400 ? 'warn' : 'info', `audio-proxy ${req.method} ${host}${hops ? ` (+${hops} redirect)` : ''} -> HTTP ${status} ${proxyRes.headers['content-type'] || '-'} len=${proxyRes.headers['content-length'] || '-'} range=${headers.range || '-'} ytHeaders=${ytHeaders ? 'yes' : 'no'}`); } catch (_) {}
+        }
+        // a media URL YouTube now refuses must not be handed out again from the lookup cache: the next
+        // play (or a source switch) resolves the song afresh instead of reusing the dead link (#18)
+        if (status === 403 || status === 410) forgetStreamUrl(targetUrl);
+        // the audio element loads with crossorigin="anonymous": googlevideo's own CORS answer (for youtube.com)
+        // must not replace ours, or the element refuses the stream it just got
+        res.writeHead(status, streamSource.downstreamHeaders(proxyRes.headers));
+        proxyRes.on('error', () => { try { res.destroy(); } catch (e) {} });
+        proxyRes.pipe(res);
+      });
+      proxyReq.setTimeout(60000, () => { proxyReq.destroy(new Error('Proxy timeout')); });
+      proxyReq.on('error', (e) => {
+        try { logger.log('warn', `audio-proxy ${host}: ${e && e.message}`); } catch (_) {}
+        fail(502, 'Proxy error');
+      });
+      proxyReq.end();
+    };
+    await fetchHop(targetUrl, 0);
   } catch (e) {
     if (!res.headersSent) {
       res.writeHead(500);

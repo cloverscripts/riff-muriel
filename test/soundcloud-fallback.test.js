@@ -55,7 +55,7 @@ childProcess.spawn = (bin, args) => {
       p.stdout.emit('data', `https://cf-media.sndcdn.com/${target.split('/').pop()}.128.mp3\n`);
       return p.emit('close', 0);
     }
-    if (args.includes('-g') && /watch\?v=raeDawn0001/.test(target)) {
+    if ((args.includes('-g') || args.includes('urls')) && /watch\?v=raeDawn0001/.test(target)) {
       p.stdout.emit('data', 'https://rr1.googlevideo.com/videoplayback?id=raeDawn0001\n');
       return p.emit('close', 0);
     }
