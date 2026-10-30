@@ -1770,7 +1770,7 @@ body.perf .artist-about-card { backdrop-filter: none !important; -webkit-backdro
   justify-content: center;
   gap: 16px;
   padding-top: 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 55%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 10%, transparent);
   margin-bottom: 4px;
 }
 @keyframes artistPaneSlideIn {
