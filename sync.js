@@ -428,6 +428,12 @@
   }
 
   let banner = null;
+  // "Not now" quiets that device for half an hour, and for the song it was playing for good: a device that keeps
+  // playing sends a fresh update every 15 s, so remembering only that update brought the banner straight back
+  const DISMISS_FOR = 30 * 60e3;
+  const songKey = (t) => (t ? String(t.id || `${t.artist || ''} - ${t.title || ''}`) : '');
+  const isDismissed = (d, e) => !!d && (d === e.t || (typeof d === 'object' && (Date.now() < d.until || d.key === songKey(e.track))));
+  function dismiss(id, e) { write(K.dismissed, { ...read(K.dismissed, {}), [id]: { key: songKey(e.track), until: Date.now() + DISMISS_FOR } }); }
   function candidate() {
     const C = window.MurielCore;
     if (!group || !catsOn().continue || !C || C.state.isPlaying) return null;
@@ -436,7 +442,7 @@
     let best = null;
     for (const [id, e] of Object.entries(np)) {
       if (id === device.id || !e || !e.track || !members[id] || members[id].del) continue;
-      if (Date.now() - e.t > CONTINUE_WITHIN || (mine && mine.t >= e.t) || dismissed[id] === e.t) continue;
+      if (Date.now() - e.t > CONTINUE_WITHIN || (mine && mine.t >= e.t) || isDismissed(dismissed[id], e)) continue;
       if (!best || e.t > best.e.t) best = { id, e };
     }
     return best;
@@ -461,11 +467,11 @@
     const live = e.playing && Date.now() - e.t < 60e3;
     I18n.text(banner.querySelector('b'), live ? 'Playing on {0}' : 'Continue from {0}', e.name);
     banner.querySelector('span').textContent = `${e.track.title || I18n.T('Unknown')}${e.track.artist ? ` · ${e.track.artist}` : ''} · ${fmt(e.pos || 0)}`;
-    banner.querySelector('.update-banner-later').onclick = () => { write(K.dismissed, { ...read(K.dismissed, {}), [id]: e.t }); updateContinue(); };
+    banner.querySelector('.update-banner-later').onclick = () => { dismiss(id, e); updateContinue(); };
     banner.querySelector('.update-banner-go').onclick = () => {
       const C = window.MurielCore;
       const at = (e.pos || 0) + (live ? (Date.now() - e.t) / 1000 : 0);
-      write(K.dismissed, { ...read(K.dismissed, {}), [id]: e.t });
+      dismiss(id, e);
       if (live) sendTo(id, { t: 'handoff' });
       C.playTrack(e.track);
       const seekOnce = () => { C.audio.removeEventListener('loadedmetadata', seekOnce); if (at > 3 && (!C.audio.duration || at < C.audio.duration - 5)) C.seek(at); };
