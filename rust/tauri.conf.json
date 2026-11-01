@@ -5,8 +5,8 @@
   "identifier": "io.github.cloverscripts.muriel.rs",
   "build": {
     "frontendDist": "dist",
-    "beforeBuildCommand": "node stage.mjs",
-    "beforeDevCommand": "node stage.mjs"
+    "beforeBuildCommand": "node rust/stage.mjs",
+    "beforeDevCommand": "node rust/stage.mjs"
   },
   "app": {
     "withGlobalTauri": true,
