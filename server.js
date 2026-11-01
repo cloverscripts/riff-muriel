@@ -6201,7 +6201,9 @@ const server = http.createServer(guardHandler(async (req, res) => {
     let originAllowed = false;
     try {
       const originUrl = new URL(requestOrigin);
-      originAllowed = originUrl.protocol === 'file:' || originUrl.hostname === '127.0.0.1' || originUrl.hostname === 'localhost' || originUrl.hostname === '::1';
+      originAllowed = originUrl.protocol === 'file:' || originUrl.hostname === '127.0.0.1' || originUrl.hostname === 'localhost' || originUrl.hostname === '::1'
+        // the Rust app's window (Tauri: tauri://localhost, or http://tauri.localhost on Windows)
+        || (process.env.MURIEL_SHELL === 'rust' && (originUrl.protocol === 'tauri:' || originUrl.hostname === 'tauri.localhost'));
     } catch (e) {
       originAllowed = false;
     }

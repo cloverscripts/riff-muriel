@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Muriel RS",
+  "version": "0.1.0",
+  "identifier": "io.github.cloverscripts.muriel.rs",
+  "build": {
+    "frontendDist": "dist",
+    "beforeBuildCommand": "node stage.mjs",
+    "beforeDevCommand": "node stage.mjs"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "resources": { "backend/": "backend/" }
+  }
+}
