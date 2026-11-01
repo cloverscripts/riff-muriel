@@ -25,7 +25,7 @@ function parseLookup(raw) {
 // headers for the upstream request: Range (and the rest) from the player, yt-dlp's User-Agent etc. win
 // over the browser's. Cookies and anything else from the renderer never go upstream.
 const YT_HEADERS = new Set(['user-agent', 'accept', 'accept-language', 'sec-fetch-mode', 'referer', 'origin']);
-function upstreamHeaders(reqHeaders, ytHeaders) {
+function upstreamHeaders(reqHeaders, ytHeaders, opts) {
   const out = {};
   const from = reqHeaders || {};
   for (const key of ['range', 'accept', 'accept-language', 'user-agent']) {
@@ -36,6 +36,11 @@ function upstreamHeaders(reqHeaders, ytHeaders) {
       const key = k.toLowerCase();
       if (YT_HEADERS.has(key) && typeof v === 'string') out[key] = v;
     }
+  }
+  // googlevideo answers web_embedded streams with an empty 403 unless they come from YouTube (Riff 44)
+  if (opts && opts.googlevideo) {
+    if (!out.origin) out.origin = 'https://www.youtube.com';
+    if (!out.referer) out.referer = 'https://www.youtube.com/';
   }
   return out;
 }

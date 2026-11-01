@@ -317,7 +317,9 @@ function cleanTrackId(id) {
 // Given to yt-dlp as music.youtube.com links without our player clients they hit YouTube Music's web client,
 // whose media URLs answer "HTTP Error 403: Forbidden" on many desktops (#18). Extract every YouTube-family
 // track from a plain youtube.com watch URL with the same clients the YouTube source uses.
-const YT_PLAYER_CLIENTS = 'youtube:player_client=default,android';
+// web_embedded answers fastest and needs no login (Riff 44); android, which needs no JavaScript challenge,
+// covers videos that can't be embedded
+const YT_PLAYER_CLIENTS = 'youtube:player_client=web_embedded,android';
 const YT_RETRY_CLIENTS = 'youtube:player_client=tv,web_safari,android_vr';
 function youtubeVideoId(trackUrl) {
   try {
@@ -2802,7 +2804,7 @@ async function handleAudioProxy(req, res, targetUrl) {
     // the headers yt-dlp resolved this URL with (#17): YouTube serves an android/tv client's stream only
     // to a request that looks like that client, not to Chromium's own User-Agent
     const ytHeaders = streamHeaders.get(targetUrl) || null;
-    const headers = streamSource.upstreamHeaders(req.headers, ytHeaders);
+    const headers = streamSource.upstreamHeaders(req.headers, ytHeaders, { googlevideo: streamSource.isGoogleVideoUrl(targetUrl) });
     const host = (() => { try { return parsed.host; } catch (_) { return '?'; } })();
     let clientGone = false;
     let proxyReq = null;

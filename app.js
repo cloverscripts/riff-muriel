@@ -2254,7 +2254,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // a stream URL (a few seconds of yt-dlp), so in the last 45 seconds (#16)
   function nextPrefetchDue(cur, dur) {
     if (!(dur > 0) || !(cur >= 0)) return false;
-    return isPhoneApp ? cur / dur > 0.5 : dur - cur <= 45;
+    // the computer looks the next song up once this one has played 10 s (a quick skip costs nothing), so
+    // it starts at once (Riff 44); phones download whole songs, so they wait until halfway
+    return isPhoneApp ? cur / dur > 0.5 : cur >= 10 || dur - cur <= 45;
   }
   window.addEventListener('muriel:storage-full', () => showToast(Tm('Storage is full: some changes could not be saved'), 'error'));
   // <audio>/<img> can't send the token header the fetch wrapper adds, so local-server media URLs carry it
@@ -6441,7 +6443,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     el.nativeAudio.addEventListener('waiting', () => {
       updatePlayPauseButton(state.isPlaying, true);
+      if (!el.nativeAudio.paused) watchStall();
     });
+    el.nativeAudio.addEventListener('stalled', () => { if (!el.nativeAudio.paused) watchStall(); });
+    ['playing', 'pause', 'emptied'].forEach((ev) => el.nativeAudio.addEventListener(ev, clearStall));
+
+    // A stream that stops delivering mid-song (an expired or throttled link) is looked up afresh after 12 s
+    // and continues where it stopped, instead of spinning forever (Riff 44)
+    let stallTimer = null;
+    function clearStall() { if (stallTimer) clearTimeout(stallTimer); stallTimer = null; }
+    function watchStall() {
+      clearStall();
+      const token = state.loadToken;
+      const track = state.currentTrack;
+      stallTimer = setTimeout(() => {
+        stallTimer = null;
+        const a = el.nativeAudio;
+        if (token !== state.loadToken || track !== state.currentTrack || a.paused || a.readyState >= 3) return;
+        if (!track || track.platform === 'local' || state.trackLoading || !navigator.onLine) return;
+        const pos = a.currentTime || 0;
+        console.warn('Track playback: stalled, looking the stream up again');
+        const resume = () => { a.removeEventListener('loadedmetadata', resume); if (token === state.loadToken && pos > 1 && (!a.duration || pos < a.duration - 2)) a.currentTime = pos; };
+        a.addEventListener('loadedmetadata', resume);
+        const signal = state.currentAbortController ? state.currentAbortController.signal : undefined;
+        attachStream(track, track.url, track.id, token, signal, true).then((ok) => { if (ok) applyAudioSettings(); else a.removeEventListener('loadedmetadata', resume); }, () => a.removeEventListener('loadedmetadata', resume));
+      }, 12000);
+    }
 
     // Each look-up starts yt-dlp, which can run a JavaScript runtime at full CPU (#16), so the computer
     // only looks up the one song that plays next, and only near the end of this one. Phones download

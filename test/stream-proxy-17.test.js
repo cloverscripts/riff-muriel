@@ -56,3 +56,11 @@ test('server lookups record the headers and the proxy uses them', () => {
   assert.match(server, /streamHeaders\.get\(targetUrl\)/);
   assert.doesNotMatch(server, /'-g', '--no-warnings', '--no-playlist', '--prefer-free-formats', '-f', 'bestaudio\/best'\];\n\s+if \((ytTarget|target)\.youtube\)/);
 });
+
+test('googlevideo requests carry a YouTube origin and referer unless yt-dlp gave its own', () => {
+  const h = ss.upstreamHeaders({ range: 'bytes=0-' }, { 'User-Agent': 'yt' }, { googlevideo: true });
+  assert.equal(h.origin, 'https://www.youtube.com');
+  assert.equal(h.referer, 'https://www.youtube.com/');
+  assert.equal(ss.upstreamHeaders({}, { Referer: 'https://x/' }, { googlevideo: true }).referer, 'https://x/');
+  assert.equal(ss.upstreamHeaders({}, null).origin, undefined);
+});
