@@ -8424,6 +8424,9 @@ body.glass.glass-lite :is(.sidebar, .main-content, #right-panel, .playbar, .sear
 .update-banner-text b { font-size: calc(14px * var(--font-scale, 1)); font-weight: 700; }
 .update-banner-text span { font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-outline); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .update-banner button { flex: none; height: 36px; padding: 0 16px; border-radius: 18px; border: 0; font: inherit; font-weight: 700; font-size: calc(13px * var(--font-scale, 1)); cursor: pointer; }
+.update-banner-progress { height: 4px; margin-top: 6px; border-radius: 2px; overflow: hidden; background: var(--md-sys-color-surface-container-highest, rgba(255, 255, 255, 0.12)); }
+.update-banner-progress[hidden], .update-banner button[hidden] { display: none; }
+.update-banner-progress i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--md-sys-color-primary); transition: width 0.2s linear; }
 .update-banner-later { background: transparent; color: var(--md-sys-color-on-surface-variant, #ccc); }
 .update-banner-go { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
 #update-status.has-update { color: var(--md-sys-color-primary); }
