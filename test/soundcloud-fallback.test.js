@@ -81,6 +81,14 @@ https.get = (url, opts, cb) => {
   });
   return r;
 };
+// the fast YouTube lookup (yt-fast.js) posts to YouTube's player API: offline too, so songs go through yt-dlp
+https.request = () => {
+  const r = new EventEmitter();
+  r.write = () => {};
+  r.end = () => setImmediate(() => r.emit('error', new Error('offline')));
+  r.destroy = () => {};
+  return r;
+};
 
 const scResolved = [];
 // SoundCloud's api, asked which search results can play: track 5 is DRM-only; everything else is offline

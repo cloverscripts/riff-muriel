@@ -49,6 +49,12 @@ https.get = (target, opts, cb) => {
   process.nextTick(() => { cb(res); res.end(res.statusCode === 200 ? searchPage : ''); });
   return req;
 };
+// the fast YouTube lookup (yt-fast.js) posts to YouTube's player API: offline, so songs go through yt-dlp
+https.request = () => {
+  const req = new PassThrough();
+  req.end = () => { process.nextTick(() => req.emit('error', new Error('offline'))); return req; };
+  return req;
+};
 
 const { startServer, stopServer, getServerToken } = require('../server');
 let port;
