@@ -64,6 +64,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   discordPresenceUpdate: (trackInfo) => ipcRenderer.send('discord-presence-update', trackInfo),
   discordPresenceClear: () => ipcRenderer.send('discord-presence-clear'),
   openExternal: (u) => ipcRenderer.send('open-external', u),
+  // in-app updates (desktop-updater.js): download the new build with progress, then put it in and restart
+  updates: {
+    supported: () => ipcRenderer.invoke('updater-supported'),
+    download: (update, onProgress) => {
+      const listener = (e, p) => { if (onProgress) onProgress(p); };
+      ipcRenderer.on('updater-progress', listener);
+      return ipcRenderer.invoke('updater-download').finally(() => ipcRenderer.removeListener('updater-progress', listener));
+    },
+    install: () => ipcRenderer.invoke('updater-install'),
+  },
   logError: (level, message, stack) => ipcRenderer.send('log-error', { level, message, stack }),
   openLogsFolder: () => ipcRenderer.send('open-logs-folder'),
   getDiagnostics: () => ipcRenderer.invoke('get-diagnostics'),
