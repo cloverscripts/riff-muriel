@@ -73,14 +73,18 @@ function register(getWindow) {
     const result = await dialog.showOpenDialog(getWindow(), { title: 'Add plugin', properties: ['openFile', 'multiSelections'], filters: [{ name: 'JavaScript plugin', extensions: ['js'] }] });
     if (result.canceled) return 0;
     let added = 0;
+    const s = readState();
     for (const file of result.filePaths) {
       try {
         const name = path.basename(file);
         if (!safeName(name) || fs.statSync(file).size > MAX_BYTES) continue;
         fs.copyFileSync(file, path.join(PLUGINS_DIR, name));
+        // a plugin replaced by a new file of the same name starts off: its new code runs only once switched on again
+        delete s[name];
         added++;
       } catch (e) {}
     }
+    writeState(s);
     return added;
   });
 }

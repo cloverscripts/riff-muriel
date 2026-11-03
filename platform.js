@@ -38,12 +38,20 @@ function resolveDataDir() {
   return DEFAULT_DATA_DIR;
 }
 
+// written beside and renamed into place: a crash halfway used to leave a cut-off file, read back as {}, so the
+// data folder silently went back to the default and the next save dropped it for good
+function writeConfig(cfg) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  const tmp = `${CONFIG_PATH}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2), 'utf-8');
+  fs.renameSync(tmp, CONFIG_PATH);
+}
+
 function setDataDir(dir) {
   const cfg = readConfig();
   if (dir && String(dir).trim()) cfg.dataDir = path.resolve(String(dir).trim());
   else delete cfg.dataDir;
-  fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf-8');
+  writeConfig(cfg);
   return cfg.dataDir || DEFAULT_DATA_DIR;
 }
 
@@ -59,8 +67,7 @@ function setDownloadDir(dir) {
   const cfg = readConfig();
   if (dir && String(dir).trim()) cfg.downloadDir = path.resolve(String(dir).trim());
   else delete cfg.downloadDir;
-  fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf-8');
+  writeConfig(cfg);
   return cfg.downloadDir || null;
 }
 
@@ -94,7 +101,7 @@ function markTutorialDone() {
 }
 
 // what Muriel itself keeps in its music folder (moving the folder copies and then deletes only these)
-const MURIEL_DATA_ENTRIES = ['tracks', 'custom-lyrics', 'lyrics', 'thumbnails', 'library', 'bin', 'plugins', 'logs', 'metadata.json', 'library.json', 'startup.json', 'spotify-auth.enc', 'lastfm-auth.enc', '.murieltutorial'];
+const MURIEL_DATA_ENTRIES = ['tracks', 'custom-lyrics', 'lyrics', 'thumbnails', 'library', 'bin', 'plugins', 'logs', 'metadata.json', 'library.json', 'startup.json', 'spotify-auth.enc', 'lastfm-auth.enc', '.murieltutorial', 'i18n'];
 
 // `only`: names to take at the top level (deeper levels take everything under them)
 async function copyDirContents(fromDir, toDir, skipNames = new Set(['config.json']), only = null) {
