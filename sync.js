@@ -134,11 +134,23 @@
       stamp(name);
       const res = Core.mergeList({ items: listItems(name), meta: lists()[name] }, theirs, l.id, { sort: l.sort, cap: l.cap });
       lists()[name] = res.meta;
+      // history entries are per play, but the app keeps one per song: a song played on both devices would show twice
+      if (name === 'history') {
+        const seen = new Set();
+        res.items = res.items.filter((t) => { const k = trackKey(t); if (seen.has(k)) return false; seen.add(k); return true; });
+      }
       if (res.changed) { write(l.key, res.items); changedKeys.push(l.key); }
     }
     if (r.settings && cats.look) {
       stamp('settings');
-      const res = Core.mergeMap({ values: settingValues(), meta: meta.settings }, r.settings);
+      // only the settings that sync, as strings: anything else a linked device sends (the sync server, custom
+      // CSS, a background file path) would otherwise be written into this device's storage as it is
+      const theirs = { values: {}, meta: {} };
+      for (const k of SETTINGS) {
+        const v = r.settings.values && r.settings.values[k];
+        if (r.settings.meta && r.settings.meta[k] && (v === null || typeof v === 'string')) { theirs.values[k] = v; theirs.meta[k] = r.settings.meta[k]; }
+      }
+      const res = Core.mergeMap({ values: settingValues(), meta: meta.settings }, theirs);
       meta.settings = res.meta;
       res.changedKeys.forEach((k) => { writeRaw(k, res.values[k]); changedKeys.push(k); });
     }

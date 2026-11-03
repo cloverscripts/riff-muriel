@@ -134,10 +134,6 @@ function normalizeNumericHost(h) {
   return null;
 }
 
-async function isPrivateHost(hostname) {
-  return !(await publicAddressOf(hostname));
-}
-
 // The address to connect to for a public host, or null when the host is (or resolves to) anything private.
 async function publicAddressOf(hostname) {
   let host = (hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
@@ -210,6 +206,40 @@ function trimCache(map, max) {
 function fetchWithTimeout(target, options = {}, timeoutMs = 15000) {
   const signal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(timeoutMs) : undefined;
   return fetch(target, signal ? { ...options, signal } : options);
+}
+
+// fetch() follows redirects on its own, so a public URL could bounce the server into the local network before
+// anything checked where it landed. This follows them by hand and checks every hop; null when one is private.
+async function fetchPublic(target, options = {}, timeoutMs = 15000, hops = 5) {
+  let url = String(target);
+  for (let i = 0; i <= hops; i++) {
+    let u;
+    try { u = new URL(url); } catch (e) { return null; }
+    if ((u.protocol !== 'https:' && u.protocol !== 'http:') || !(await publicAddressOf(u.hostname))) return null;
+    const r = await fetchWithTimeout(u.href, { ...options, redirect: 'manual' }, timeoutMs);
+    const location = r.status >= 300 && r.status < 400 && r.headers.get('location');
+    if (!location) return r;
+    try { await r.body?.cancel(); } catch (e) {}
+    url = new URL(location, u).href;
+  }
+  return null;
+}
+
+// a response body up to max bytes, or null beyond that: Content-Length can be missing (chunked) or wrong, and
+// arrayBuffer() would hold an endless body in memory until the timeout
+async function readCapped(res, max) {
+  if (Number(res.headers.get('content-length')) > max) { try { await res.body?.cancel(); } catch (e) {} return null; }
+  const reader = res.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > max) { try { await reader.cancel(); } catch (e) {} return null; }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
 }
 
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -1623,12 +1653,10 @@ async function cacheThumbnailToDisk(cleanId, thumbnailUrl) {
   if (fs.existsSync(destPath)) return destPath;
   try {
     // the URL comes from the request: never let it point the server at the local network
-    const u = new URL(thumbnailUrl);
-    if ((u.protocol !== 'https:' && u.protocol !== 'http:') || await isPrivateHost(u.hostname)) return null;
-    const res = await fetchWithTimeout(thumbnailUrl);
-    if (!res.ok) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
-    if (buffer.length > 500) {
+    const res = await fetchPublic(thumbnailUrl);
+    if (!res || !res.ok) return null;
+    const buffer = await readCapped(res, IMAGE_PROXY_MAX);
+    if (buffer && buffer.length > 500) {
       await fs.promises.writeFile(destPath, buffer);
       return destPath;
     }
@@ -1806,7 +1834,7 @@ async function prefetchTrack(trackUrl, trackId, platform, meta = null, priority 
         isLocal: false,
         streamUrl: streamUrl,
         isHls: isHls,
-        proxyUrl: withToken(`http://127.0.0.1:${PORT}/api/audio-proxy?url=${encodeURIComponent(streamUrl)}`)
+        proxyUrl: withToken(`${serverOrigin()}/api/audio-proxy?url=${encodeURIComponent(streamUrl)}`)
       };
       streamUrlCache.set(cacheKey, { timestamp: Date.now(), data });
       if (cleanId && cleanId !== cacheKey) {
@@ -2367,7 +2395,7 @@ async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube
     const data = {
       success: true,
       isLocal: true,
-      streamUrl: withToken(`http://127.0.0.1:${PORT}/api/local-track?id=${encodeURIComponent(cleanId)}`)
+      streamUrl: withToken(`${serverOrigin()}/api/local-track?id=${encodeURIComponent(cleanId)}`)
     };
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(data));
@@ -2378,7 +2406,7 @@ async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube
       success: true,
       isLocal: true,
       isDownload: true,
-      streamUrl: withToken(`http://127.0.0.1:${PORT}/api/downloaded-track?name=${encodeURIComponent(downloadedName)}`)
+      streamUrl: withToken(`${serverOrigin()}/api/downloaded-track?name=${encodeURIComponent(downloadedName)}`)
     };
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(data));
@@ -2444,7 +2472,7 @@ async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube
     // settle the in-flight entry so concurrent lookups for this track don't wait forever,
     // and drop it so later prefetches don't mistake it for a cached stream URL
     const outcome = await findCachedFile(cleanId)
-      ? { success: true, isLocal: true, streamUrl: withToken(`http://127.0.0.1:${PORT}/api/local-track?id=${encodeURIComponent(cleanId)}`) }
+      ? { success: true, isLocal: true, streamUrl: withToken(`${serverOrigin()}/api/local-track?id=${encodeURIComponent(cleanId)}`) }
       : { success: false, error: STREAM_FAILED };
     resolveLookup(outcome);
     if (cacheKey && streamUrlCache.get(cacheKey) === inFlightEntry) streamUrlCache.delete(cacheKey);
@@ -2513,7 +2541,7 @@ async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube
     isLocal: false,
     streamUrl: streamUrl,
     isHls: isHls,
-    proxyUrl: withToken(`http://127.0.0.1:${PORT}/api/audio-proxy?url=${encodeURIComponent(streamUrl)}`)
+    proxyUrl: withToken(`${serverOrigin()}/api/audio-proxy?url=${encodeURIComponent(streamUrl)}`)
   };
 
   resolveLookup(data);
@@ -2963,7 +2991,9 @@ async function cleanupDownloadArtifacts(dir, beforeSet, baseName, videoId, chose
       if (beforeSet.has(f)) continue;
 
       const fileExt = path.extname(f).toLowerCase();
-      const belongs = f.startsWith(baseName) || (videoId && f.includes(videoId));
+      // "Artist - Song.<ext>" and yt-dlp's working files (.webm, .f251.webm, .temp.mp3, .part), but not another
+      // download running alongside, such as "Artist - Song (Live).webm"
+      const belongs = f.startsWith(`${baseName}.`) || (videoId && f.includes(videoId));
       if (!belongs) continue;
 
       if (keepSuccessFile && f === `${baseName}${chosenExtWithDot}`) {
@@ -3061,16 +3091,10 @@ async function fetchProxiedImage(target) {
   if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
   if ((imageHostFails.get(u.hostname) || 0) > Date.now()) return null;
   try {
-    if (!(await publicAddressOf(u.hostname))) return null;
-    const r = await fetchWithTimeout(u.href, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36' } }, 6000);
-    if (r.url && r.url !== u.href) {
-      const final = new URL(r.url);
-      if (!(await publicAddressOf(final.hostname))) return null;
-    }
-    if (!r.ok) return null;
-    if (Number(r.headers.get('content-length')) > IMAGE_PROXY_MAX) return null;
-    const buf = Buffer.from(await r.arrayBuffer());
-    return buf.length >= 500 && buf.length <= IMAGE_PROXY_MAX && imageContentType(buf) ? buf : null;
+    const r = await fetchPublic(u.href, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36' } }, 6000);
+    if (!r || !r.ok) return null;
+    const buf = await readCapped(r, IMAGE_PROXY_MAX);
+    return buf && buf.length >= 500 && imageContentType(buf) ? buf : null;
   } catch (e) {
     imageHostFails.set(u.hostname, Date.now() + 10 * 60 * 1000);
     trimCache(imageHostFails, 200);
@@ -3164,6 +3188,14 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
     res.writeHead(400, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ success: false, error: 'missing track information' }));
   }
+  // Cancel in the app closes the request: from then on nothing more is started for it (a killed run used to
+  // look like a failure and start the fallback download, which nothing could stop)
+  let clientGone = false;
+  res.on('close', () => { if (!res.writableEnded) clientGone = true; });
+  // the same download asked for twice (Download all and a single download of that song) shares one run: it only
+  // counts as cancelled once every request waiting for it is gone
+  let downloadPromise = null;
+  const abandoned = () => clientGone && !(downloadPromise && downloadPromise.waiting > 0);
 
   let start = null;
   if (startParam !== null && startParam !== undefined && startParam !== '') {
@@ -3215,13 +3247,16 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
 
   const downloadKey = !isRaw ? JSON.stringify([cleanId || targetUrl, cleanArtist, cleanTitle, ext, safeQuality, start, end]) : null;
   if (downloadKey && downloadInFlight.has(downloadKey)) {
-    const outcome = await downloadInFlight.get(downloadKey);
+    const shared = downloadInFlight.get(downloadKey);
+    shared.waiting = (shared.waiting || 0) + 1;
+    res.on('close', () => { if (!res.writableEnded) shared.waiting--; });
+    const outcome = await shared;
     res.writeHead(outcome.status, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(outcome.body));
   }
 
   let resolveDownload;
-  const downloadPromise = downloadKey ? new Promise(resolve => { resolveDownload = resolve; }) : null;
+  downloadPromise = downloadKey ? new Promise(resolve => { resolveDownload = resolve; }) : null;
   if (downloadKey) downloadInFlight.set(downloadKey, downloadPromise);
   let downloadOutcome = null;
   const sendDownloadResponse = (status, body) => {
@@ -3271,11 +3306,13 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
 
       let ffmpegProc = null;
       res.on('close', () => {
-        if (!res.writableEnded && ffmpegProc) {
+        if (abandoned() && ffmpegProc) {
           try { ffmpegProc.kill('SIGKILL'); } catch (_) {}
           try { fs.unlinkSync(outPath); } catch (_) {}
         }
       });
+      // cancelled while the cached file and ffmpeg were being looked up: the close above has already passed
+      if (abandoned()) return;
 
       try {
         await new Promise((resolve, reject) => {
@@ -3297,6 +3334,7 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
         });
       } catch (cachedErr) {
         try { await fs.promises.unlink(outPath); } catch (_) {}
+        if (abandoned()) return;
       }
     }
   }
@@ -3327,11 +3365,16 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
   }
 
   res.on('close', () => {
-    if (!res.writableEnded && child) {
+    if (abandoned() && child) {
       try { child.kill('SIGKILL'); } catch (e) {}
       cleanupPartial();
     }
   });
+  // a run that was still waiting in the yt-dlp queue when the app cancelled is stopped as soon as it starts
+  const onChild = (c) => {
+    child = c;
+    if (abandoned()) { try { c.kill('SIGKILL'); } catch (e) {} }
+  };
 
   const baseName = isRaw ? tempName.replace(/\.wav$/, '') : `${cleanArtist} - ${cleanTitle}`;
   const videoId = cleanId;
@@ -3358,7 +3401,7 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
   args.push('--', targetUrl);
 
   try {
-    await executeYtDlp(args, 180000, { onChild: c => { child = c; }, reason: 'download' });
+    await executeYtDlp(args, 180000, { onChild, reason: 'download' });
     if (!isRaw) {
       await cleanupDownloadArtifacts(downloadsDir, beforeFiles, baseName, videoId, ext, true);
       downloadsIndex = null;
@@ -3375,6 +3418,10 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
     try { logger.error('Download primary failed: ' + (title || trackUrl), err); } catch (_) {}
     if (res.writableEnded) {
       sendDownloadResponse(500, { success: false, error: err.message });
+      return;
+    }
+    if (abandoned()) {
+      await cleanupPartial();
       return;
     }
     try {
@@ -3395,7 +3442,7 @@ async function handleDownload(req, res, trackUrl, title, artist, format = 'mp3',
       }
       fallbackArgs.push('--', targetUrl);
 
-      await executeYtDlp(fallbackArgs, 180000, { onChild: c => { child = c; }, reason: 'download-fallback' });
+      await executeYtDlp(fallbackArgs, 180000, { onChild, reason: 'download-fallback' });
       if (!isRaw) {
         await cleanupDownloadArtifacts(downloadsDir, beforeFiles, baseName, videoId, ext, true);
         downloadsIndex = null;
@@ -4647,10 +4694,16 @@ function clearStoredSpotifyAuth() {
   fs.rmSync(spotifyAuthPath, { force: true });
 }
 
-function getSpotifyRedirectUri() {
+// this server's own address, on the port it really got: when 38472 is taken it listens on another one, and
+// links built with the fixed port would point at whatever holds 38472 (and hand it the session token)
+function serverOrigin() {
   const a = server.address();
   const port = (a && typeof a === 'object' && a.port) ? a.port : PORT;
-  return `http://127.0.0.1:${port}/api/spotify-callback`;
+  return `http://127.0.0.1:${port}`;
+}
+
+function getSpotifyRedirectUri() {
+  return `${serverOrigin()}/api/spotify-callback`;
 }
 
 function requestSpotifyToken(params) {
@@ -6597,7 +6650,7 @@ const server = http.createServer(guardHandler(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ 
       cached: !!cachedFile, 
-      streamUrl: cachedFile ? withToken(`http://127.0.0.1:${PORT}/api/local-track?id=${encodeURIComponent(cleanId)}`) : null 
+      streamUrl: cachedFile ? withToken(`${serverOrigin()}/api/local-track?id=${encodeURIComponent(cleanId)}`) : null 
     }));
   }
 
@@ -6713,7 +6766,7 @@ const server = http.createServer(guardHandler(async (req, res) => {
         title: item.title,
         artist: item.artist,
         duration: Number(item.duration) || 0,
-        thumbnail: fs.existsSync(localCoverPath(item.id)) ? withToken(`http://127.0.0.1:${PORT}/api/local-cover?id=${encodeURIComponent(item.id)}`) : ''
+        thumbnail: fs.existsSync(localCoverPath(item.id)) ? withToken(`${serverOrigin()}/api/local-cover?id=${encodeURIComponent(item.id)}`) : ''
       }));
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(list));
@@ -6791,7 +6844,7 @@ const server = http.createServer(guardHandler(async (req, res) => {
             artist: meta.artist || 'Unknown artist',
             duration: meta.duration || 0,
             thumbnail: meta.thumbnail || '',
-            localThumbnail: fs.existsSync(path.join(THUMBNAILS_DIR, `${cleanId}.jpg`)) ? withToken(`http://127.0.0.1:${PORT}/api/local-thumbnail?id=${cleanId}`) : (meta.thumbnail || ''),
+            localThumbnail: fs.existsSync(path.join(THUMBNAILS_DIR, `${cleanId}.jpg`)) ? withToken(`${serverOrigin()}/api/local-thumbnail?id=${cleanId}`) : (meta.thumbnail || ''),
             platform: meta.platform || 'youtube',
             fileSize: stat.size,
             lastPlayed: meta.lastPlayed || stat.mtimeMs,

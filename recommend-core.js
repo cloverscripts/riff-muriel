@@ -17,10 +17,15 @@
   const TITLE_NOISE = /\s*[([][^)\]]*\b(?:official|video|audio|lyrics?|visuali[sz]er|hd|hq|4k|remaster(?:ed)?|upgrade|mv|m\/v)\b[^)\]]*[)\]]/gi;
   // talk, not songs
   const NOT_MUSIC = /\b(?:documentary|interview|trailer|reaction|behind the scenes|making of|podcast|full album|live stream)\b/i;
-  const fold = (x) => String(x || '').normalize('NFKD').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  const fold = (x) => String(x || '').normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f\u20d0-\u20ff\ufe00-\ufe0f]/g, '').replace(/[^\p{L}\p{N}\p{M}]/gu, '');
 
   // A video's title often carries its artist ("Radiohead - No Surprises (Official Video)"): the song's own name,
   // and the artist the title names (a re-upload's channel is not the artist).
+  // "Song - Remastered 2011", "Song - Live at Wembley", "Song - Radio Edit": a version of the song, not "Artist - Song"
+  // only tags that say what kind of version they are: a bare "Mono", "Stereo", "Demo" or "Live in the Moment"
+  // after an artist's name is a song called that
+  const VERSION_TAG = /^(?:(?:\d{4}\s+)?(?:digital(?:ly)?\s+)?re-?master(?:ed)?(?:\s+\d{4})?(?:\s+version)?|live\s+(?:at|from)\s+.+|(?:\d{4}\s+)?(?:mono|stereo)\s+(?:mix|version)|(?:radio|single|album|extended|original)\s+(?:edit|version|mix)|(?:acoustic|demo)\s+version)$/i;
+
   function cleanVideoTitle(title, artist) {
     let t = String(title || '').replace(TITLE_NOISE, '').replace(/\s+/g, ' ').trim();
     const given = String(artist || '').replace(/\s*-\s*Topic$/i, '').trim();
@@ -35,6 +40,7 @@
       const right = m[2].trim();
       if (same(left)) t = right;
       else if (same(right)) { t = left; break; } // "In The End - Linkin Park"
+      else if (VERSION_TAG.test(right)) { t = left; break; } // "Bohemian Rhapsody - Remastered 2011"
       else if (i === 0 && fold(left)) { a = left; t = right; } // a re-upload: the artist the title names
       else break;
     }
