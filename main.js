@@ -126,6 +126,29 @@ function runGUI() {
   let isMiniWindow = false;
   let preMiniBounds = null;
 
+  // Electron's default View menu zooms the page for Ctrl+- but its Ctrl++ accelerator never fires on Windows
+  // (#41). Muriel has its own UI scale, handled in the renderer, so keep the useful View roles and leave the
+  // native zoom items (and their mismatched shortcuts) out.
+  function installAppMenu() {
+    const template = [
+      ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'togglefullscreen' }
+        ]
+      },
+      { role: 'windowMenu' }
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  }
+
   const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
 
   function readWindowState() {
@@ -786,6 +809,7 @@ function runGUI() {
       });
 
       app.whenReady().then(() => {
+        installAppMenu();
         setupTray();
         createWindow();
         app.on('activate', () => {

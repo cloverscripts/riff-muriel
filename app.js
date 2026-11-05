@@ -3610,6 +3610,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!t) return 0;
     return Math.max(0, (t.end - (t.el.currentTime || 0)) / (t.el.playbackRate || 1));
   }
+  // Hands the speed / pitch settings to the tail player. Loading a source can put playbackRate back to 1
+  // (WebKit only does it once the song has loaded) and the tail bypasses the engine, so copy them again after
+  // the metadata is in and right before it starts (#36).
+  function applyTailPlayback(t, a) {
+    if (!t) return;
+    let rate = a.playbackRate || 1;
+    let preservePitch = 'preservesPitch' in a ? a.preservesPitch : true;
+    if (audioEngine && audioEngine.playbackFor) {
+      try {
+        const p = audioEngine.playbackFor();
+        rate = p.rate;
+        preservePitch = p.preservePitch;
+      } catch (e) {}
+    }
+    t.defaultPlaybackRate = rate;
+    t.playbackRate = rate;
+    if ('preservesPitch' in t) t.preservesPitch = preservePitch;
+    t.webkitPreservesPitch = preservePitch;
+    t.mozPreservesPitch = preservePitch;
+  }
   // the second player opened at the crossfade point, ready before it's needed
   function prepareCrossfade(point, end) {
     const a = el.nativeAudio;
@@ -3621,10 +3641,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       t.preload = 'auto';
       if (a.crossOrigin) t.crossOrigin = a.crossOrigin;
       t.volume = 0;
-      t.playbackRate = a.playbackRate;
-      if ('preservesPitch' in a) t.preservesPitch = a.preservesPitch;
+      applyTailPlayback(t, a);
       if (a.sinkId && typeof t.setSinkId === 'function') t.setSinkId(a.sinkId).catch(() => {});
-      t.addEventListener('loadedmetadata', () => { try { t.currentTime = point; } catch (e) {} }, { once: true });
+      t.addEventListener('loadedmetadata', () => {
+        try { t.currentTime = point; } catch (e) {}
+        applyTailPlayback(t, a);
+      }, { once: true });
       t.addEventListener('seeked', () => { if (xfade.prep === p) p.ready = true; }, { once: true });
       t.addEventListener('error', () => { if (xfade.prep === p) dropCrossfadePrep(); }, { once: true });
       t.src = a.currentSrc;
@@ -3658,6 +3680,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!p.ready || p.token !== state.loadToken || a.paused || state.isRepeat || queueFinished()) { fallback(); return; }
     const t = p.el;
     const level = tailLevel();
+    applyTailPlayback(t, a);
     try { t.currentTime = Math.min(p.end, a.currentTime + 0.02); } catch (e) {}
     t.volume = 0; // silent until the main player lets go, or the two would play the same seconds twice
     const played = t.play();
@@ -7528,11 +7551,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     fadeRows.forEach(r => { if (r.isConnected) updateRowFade(r); else fadeRows.delete(r); });
   }, { passive: true });
 
-  // a mouse wheel over a sideways row scrolls the row while it can still go that way; at its ends the page
-  // scrolls on (Ctrl+wheel is zoom, left alone)
+  // A wheel with horizontal intent (a trackpad swipe) or Shift+wheel scrolls a sideways row; a plain vertical
+  // wheel leaves the row alone and scrolls the page. Intercepting every vertical notch made the Home rows hitch
+  // and scroll slower than the rest of the page (#41).
   function wheelRowSideways(row, e) {
     if (e.ctrlKey || e.defaultPrevented || row.scrollWidth <= row.clientWidth + 1) return;
-    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+    if (!sideways && !(e.shiftKey && Math.abs(e.deltaY) > 0)) return;
+    const delta = sideways ? e.deltaX : e.deltaY;
+    if (!delta) return;
     if ((delta < 0 && row.scrollLeft > 0) || (delta > 0 && row.scrollLeft < row.scrollWidth - row.clientWidth - 1)) {
       e.preventDefault();
       row.scrollBy({ left: e.deltaMode === 1 ? delta * 40 : delta, behavior: 'smooth' });
@@ -11372,6 +11399,35 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
+
+  // Ctrl/Cmd +, - and 0 use the same UI scale as the Interface slider. Electron's default View menu zoomed
+  // the page for Ctrl+- but its Ctrl++ accelerator never fired on Windows (#41), leaving the slider behind.
+  // The native zoom items are gone (see main.js), so these shortcuts step the app's own scale and keep the
+  // slider in sync.
+  function setUiScale(next) {
+    const clamped = Math.max(80, Math.min(130, Math.round(Number(next) / 5) * 5));
+    if (!Number.isFinite(clamped)) return;
+    state.uiScale = clamped;
+    localStorage.setItem('devsize_ui_scale', clamped.toString());
+    if (el.sliderScale) el.sliderScale.value = clamped.toString();
+    if (el.valScale) el.valScale.textContent = `${clamped}%`;
+    requestAnimationFrame(() => {
+      applyScale(clamped);
+      requestAnimationFrame(resizeCanvases);
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const code = e.code || '';
+    const key = e.key || '';
+    let next = null;
+    if (code === 'Equal' || code === 'NumpadAdd' || key === '+' || key === '=') next = Number(state.uiScale || 100) + 5;
+    else if (code === 'Minus' || code === 'NumpadSubtract' || key === '-' || key === '_') next = Number(state.uiScale || 100) - 5;
+    else if (code === 'Digit0' || code === 'Numpad0' || key === '0') next = 100;
+    if (next === null) return;
+    e.preventDefault();
+    setUiScale(next);
+  }, true);
 
   if (el.sliderFontScale) {
     el.sliderFontScale.addEventListener('input', (e) => {
