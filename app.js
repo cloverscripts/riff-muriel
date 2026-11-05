@@ -7562,7 +7562,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!delta) return;
     if ((delta < 0 && row.scrollLeft > 0) || (delta > 0 && row.scrollLeft < row.scrollWidth - row.clientWidth - 1)) {
       e.preventDefault();
-      row.scrollBy({ left: e.deltaMode === 1 ? delta * 40 : delta, behavior: 'smooth' });
+      // Scroll immediately to the running total. A smooth scroll per wheel event restarts from the position
+      // on screen each time, so several fast notches all aimed at the same few pixels and the row moved only
+      // as far as one notch (#41). "instant" also bypasses the row's CSS scroll-behavior: smooth.
+      const step = e.deltaMode === 1 ? delta * 40 : e.deltaMode === 2 ? delta * row.clientWidth : delta;
+      const max = row.scrollWidth - row.clientWidth;
+      const target = Math.max(0, Math.min(max, row.scrollLeft + step));
+      if (typeof row.scrollTo === 'function') row.scrollTo({ left: target, behavior: 'instant' });
+      else row.scrollLeft = target;
     }
   }
   // rows drawn without bindHorizontalWheel (For you: artists and songs, Your playlists, an artist's namesakes)
