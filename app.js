@@ -230,7 +230,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     'Added {0} tracks to "{1}"', 'Playlist deleted', 'Link copied{0}', 'Removed from library', 'Could not play this song. Try again or skip.',
     'Offline: connect to the internet to search new tracks', 'No matching tracks. Try a different search', 'Search for "{0}"', 'Actions',
     'Playlists', 'Favorites', 'In playlists', 'Queue', 'History', 'Library', 'Online', 'Discover', 'View', 'Audio', 'Your stats',
-    'Repeat: playlist', 'Repeat: this song', 'Start radio', 'Radio · {0}', 'Radio · {0} and {1} more', 'Sleep timer: {0} min', 'Sleep timer: end of track']);
+    'Repeat: playlist', 'Repeat: this song', 'Start radio', 'Radio · {0}', 'Radio · {0} and {1} more', 'Sleep timer: {0} min', 'Sleep timer: end of track',
+    'Up next', 'Up next position', 'Above', 'Below', 'Nothing up next.', 'Remove from queue', 'Removed from queue',
+    'Save cover art', 'Cover art saved', 'No cover art available', "Couldn't save the cover art"]);
 
   const toastQueue = [];
   const MAX_QUEUED_TOASTS = 10;
@@ -1768,6 +1770,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                           downloadPreviewFallback: document.getElementById('download-preview-fallback'),
                           downloadPreviewTitle: document.getElementById('download-preview-title'),
                           downloadPreviewArtist: document.getElementById('download-preview-artist'),
+                          btnSaveCoverArt: document.getElementById('btn-save-cover-art'),
                           btnPlaybarMore: document.getElementById('btn-playbar-more'),
 
                           audioSettingsModal: document.getElementById('audio-settings-modal'),
@@ -5138,6 +5141,234 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     syncTvBanner();
     syncTvLayout();
+    if (isNew) onTvkTrackChangedForUpNext();
+  }
+
+  // ---- TV Karaoke: Up Next preview (#1) ----
+  // Appears by itself shortly before the song ends, or when the Next button is hovered/focused.
+  // Hover/focus previews close after a short grace period; an automatic one stays until the track changes.
+  const TVK_UP_NEXT_GRACE_MS = 600;
+  let tvkUpNextMode = null; // null | 'manual' | 'auto'
+  let tvkUpNextTrack = null;
+  let tvkUpNextAutoTrackKey = '';
+  let tvkUpNextGraceTimer = null;
+
+  function tvkTrackKey(track) {
+    if (!track) return '';
+    return `${track.id || ''}:${track.title || ''}:${track.artist || ''}`;
+  }
+
+  function tvkUpNextSuppressed() {
+    return !!(state.isRepeat || state.repeatMode === 'one' || (state.sleepTimer && state.sleepTimer.mode === 'end'));
+  }
+
+  function tvkUpNextPopover() {
+    return document.getElementById('tvk-up-next');
+  }
+
+  function renderTvkUpNext(track) {
+    const pop = tvkUpNextPopover();
+    if (!pop) return;
+    const body = document.getElementById('tvk-up-next-body');
+    const empty = document.getElementById('tvk-up-next-empty');
+    const coverWrap = document.getElementById('tvk-up-next-cover-wrap');
+    const cover = document.getElementById('tvk-up-next-cover');
+    const titleEl = document.getElementById('tvk-up-next-title');
+    const artistEl = document.getElementById('tvk-up-next-artist');
+    const removeBtn = document.getElementById('btn-tvk-up-next-remove');
+    tvkUpNextTrack = track || null;
+
+    if (body && empty) {
+      body.classList.toggle('hidden', !track);
+      empty.classList.toggle('hidden', !!track);
+    }
+    if (removeBtn) {
+      removeBtn.disabled = !track;
+      removeBtn.title = T('Remove from queue');
+      removeBtn.setAttribute('aria-label', T('Remove from queue'));
+    }
+    if (!track) {
+      if (cover) { cover.removeAttribute('src'); cover.onerror = null; cover.style.display = ''; }
+      if (coverWrap) coverWrap.classList.add('no-cover');
+      if (titleEl) titleEl.textContent = '';
+      if (artistEl) artistEl.textContent = '';
+      return;
+    }
+
+    if (titleEl) titleEl.textContent = track.title || '';
+    if (artistEl) artistEl.textContent = track.artist || '';
+    const thumb = getTrackThumbUrl(track);
+    if (cover && coverWrap) {
+      cover.onerror = () => {
+        if (tvkUpNextTrack !== track) return;
+        if (!nextPlayerArt(track, cover)) coverWrap.classList.add('no-cover');
+      };
+      if (thumb) {
+        coverWrap.classList.remove('no-cover');
+        cover.style.display = '';
+        cover.src = thumb;
+      } else {
+        coverWrap.classList.add('no-cover');
+        cover.removeAttribute('src');
+      }
+    }
+  }
+
+  // Fixed-position the popover next to the TV side (above the album art or below the controls), and
+  // keep it on screen in short windows by flipping to the other side when there is no room.
+  function positionTvkUpNext() {
+    const pop = tvkUpNextPopover();
+    if (!pop || !pop.classList.contains('open')) return;
+    const side = document.querySelector('#tv-karaoke .tv-side');
+    if (!side) return;
+    const sideRect = side.getBoundingClientRect();
+    const rect = pop.getBoundingClientRect();
+    if (!rect.height) return;
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+    const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight || 0;
+    const margin = 12;
+    const gap = 14;
+    const placement = getTvk().upNextPlacement === 'above' ? 'above' : 'below';
+    let top = placement === 'above' ? sideRect.top - rect.height - gap : sideRect.bottom + gap;
+    if (top < margin) top = sideRect.bottom + gap;
+    if (top + rect.height > vh - margin) top = sideRect.top - rect.height - gap;
+    top = Math.max(margin, Math.min(top, Math.max(margin, vh - rect.height - margin)));
+    let left = sideRect.left + (sideRect.width - rect.width) / 2;
+    left = Math.max(margin, Math.min(left, Math.max(margin, vw - rect.width - margin)));
+    pop.style.left = `${Math.round(left)}px`;
+    pop.style.top = `${Math.round(top)}px`;
+  }
+
+  function showTvkUpNext(mode) {
+    if (!state.isTvKaraokeOpen || tvkUpNextSuppressed()) return;
+    const pop = tvkUpNextPopover();
+    if (!pop) return;
+    const track = peekNextQueueTrack();
+    if (mode === 'auto') {
+      if (!track) return;
+      tvkUpNextAutoTrackKey = tvkTrackKey(state.currentTrack);
+      tvkUpNextMode = 'auto';
+    } else if (tvkUpNextMode !== 'auto') {
+      tvkUpNextMode = 'manual';
+    }
+    renderTvkUpNext(track);
+    pop.classList.add('open');
+    pop.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(positionTvkUpNext);
+  }
+
+  function hideTvkUpNext(force) {
+    if (!force && tvkUpNextMode === 'auto') return;
+    const pop = tvkUpNextPopover();
+    if (pop) {
+      pop.classList.remove('open');
+      pop.setAttribute('aria-hidden', 'true');
+    }
+    tvkUpNextMode = null;
+    tvkUpNextTrack = null;
+    cancelTvkUpNextHide();
+  }
+
+  function refreshTvkUpNext() {
+    if (!tvkUpNextMode) return;
+    if (tvkUpNextSuppressed()) { hideTvkUpNext(true); return; }
+    renderTvkUpNext(peekNextQueueTrack());
+    requestAnimationFrame(positionTvkUpNext);
+  }
+
+  function cancelTvkUpNextHide() {
+    clearTimeout(tvkUpNextGraceTimer);
+    tvkUpNextGraceTimer = null;
+  }
+
+  function scheduleTvkUpNextHide() {
+    if (tvkUpNextMode === 'auto') return;
+    cancelTvkUpNextHide();
+    tvkUpNextGraceTimer = setTimeout(() => {
+      tvkUpNextGraceTimer = null;
+      const pop = tvkUpNextPopover();
+      const btn = document.getElementById('btn-tvk-next');
+      const overPop = !!(pop && (pop.matches(':hover') || pop.contains(document.activeElement)));
+      const overBtn = !!(btn && (btn.matches(':hover') || btn === document.activeElement));
+      if (overPop || overBtn) return;
+      hideTvkUpNext();
+    }, TVK_UP_NEXT_GRACE_MS);
+  }
+
+  function openTvkUpNextManual() {
+    cancelTvkUpNextHide();
+    showTvkUpNext('manual');
+  }
+
+  function onTvkTrackChangedForUpNext() {
+    tvkUpNextAutoTrackKey = '';
+    if (tvkUpNextMode === 'auto') hideTvkUpNext(true);
+    else if (tvkUpNextMode === 'manual') refreshTvkUpNext();
+  }
+
+  function maybeShowTvkUpNextAuto(cur, dur) {
+    if (!state.isTvKaraokeOpen || !state.isPlaying) return;
+    if (tvkUpNextMode) return;
+    if (tvkUpNextSuppressed()) return;
+    if (!(dur > 0)) return;
+    const trim = state.currentTrack ? getTrackTrim(state.currentTrack) : null;
+    const end = (window.MurielTrim && window.MurielTrim.isActive(trim)) ? Math.min(trim.end, dur) : dur;
+    const remaining = end - cur;
+    if (!(remaining > 0 && remaining <= 20)) return;
+    const key = tvkTrackKey(state.currentTrack);
+    if (tvkUpNextAutoTrackKey === key) return;
+    if (!peekNextQueueTrack()) return;
+    showTvkUpNext('auto');
+  }
+
+  function initTvkUpNext() {
+    const btnNext = document.getElementById('btn-tvk-next');
+    const pop = tvkUpNextPopover();
+    const removeBtn = document.getElementById('btn-tvk-up-next-remove');
+
+    if (btnNext) {
+      btnNext.addEventListener('pointerenter', openTvkUpNextManual);
+      btnNext.addEventListener('pointerleave', scheduleTvkUpNextHide);
+      btnNext.addEventListener('focus', openTvkUpNextManual);
+      btnNext.addEventListener('blur', scheduleTvkUpNextHide);
+      btnNext.addEventListener('keydown', (e) => {
+        if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && removeBtn && tvkUpNextMode && !removeBtn.disabled) {
+          e.preventDefault();
+          removeBtn.focus();
+        }
+      });
+    }
+    if (pop) {
+      pop.setAttribute('aria-label', T('Up next'));
+      pop.addEventListener('pointerenter', cancelTvkUpNextHide);
+      pop.addEventListener('pointerleave', scheduleTvkUpNextHide);
+      pop.addEventListener('focusin', () => {
+        cancelTvkUpNextHide();
+        if (tvkUpNextMode !== 'auto' && !pop.classList.contains('open')) showTvkUpNext('manual');
+      });
+      pop.addEventListener('focusout', scheduleTvkUpNextHide);
+    }
+    if (removeBtn) {
+      removeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const track = tvkUpNextTrack;
+        if (!track) return;
+        removeUpcomingQueueTrack(track);
+        showToast(Tm('Removed from queue'), 'info');
+        refreshTvkUpNext();
+        // keep keyboard users in the preview: the new next song's remove button, or the Next button
+        if (removeBtn.disabled) {
+          if (btnNext && document.activeElement === removeBtn) btnNext.focus();
+        } else if (document.activeElement === removeBtn) {
+          removeBtn.focus();
+        }
+      });
+    }
+    const reposition = () => { if (tvkUpNextMode) requestAnimationFrame(positionTvkUpNext); };
+    window.addEventListener('resize', reposition);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', reposition);
+    if (typeof window !== 'undefined') window.addEventListener('muriel:queue', reposition);
   }
 
   let tvkOutputInterval = null;
@@ -5285,6 +5516,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function closeTvKaraoke() {
     if (!state.isTvKaraokeOpen || !el.tvKaraoke) return;
     state.isTvKaraokeOpen = false;
+    hideTvkUpNext(true);
+    tvkUpNextAutoTrackKey = '';
     clearTimeout(tvIdleTimer);
     if (tvkOutputInterval) {
       clearInterval(tvkOutputInterval);
@@ -5440,7 +5673,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     weight: 700,
     gap: 16,
     anim: 'slide',
-    speed: 900
+    speed: 900,
+    upNextPlacement: 'below'
   };
 
   const TVK_FONTS = {
@@ -5471,7 +5705,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           weight: Number(parsed.weight) || TVK_DEFAULTS.weight,
           gap: (parsed.gap !== undefined && !isNaN(Number(parsed.gap))) ? Number(parsed.gap) : TVK_DEFAULTS.gap,
           anim: parsed.anim || TVK_DEFAULTS.anim,
-          speed: Number(parsed.speed) || TVK_DEFAULTS.speed
+          speed: Number(parsed.speed) || TVK_DEFAULTS.speed,
+          upNextPlacement: parsed.upNextPlacement === 'above' ? 'above' : 'below'
         };
       }
     } catch (_) {}
@@ -5563,6 +5798,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     tv.style.setProperty('--tvk-speed', `${speed}ms`);
     tv.setAttribute('data-tvk-anim', anim);
     tv.setAttribute('data-tvk-align', align);
+    tv.setAttribute('data-tvk-upnext', s.upNextPlacement === 'above' ? 'above' : 'below');
+
+    if (typeof positionTvkUpNext === 'function') requestAnimationFrame(positionTvkUpNext);
 
     const tvkVisOn = localStorage.getItem('muriel_tvk_visualizer') !== 'false';
     tv.classList.toggle('no-tvk-visualizer', !tvkVisOn);
@@ -5622,6 +5860,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (selAnim) selAnim.value = s.anim;
 
+    const upNextGroup = document.getElementById('tvk-upnext-group');
+    if (upNextGroup) {
+      upNextGroup.querySelectorAll('.tvk-pill-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === s.upNextPlacement);
+      });
+    }
+
     if (sliderSize) sliderSize.value = s.size;
     if (sliderWeight) sliderWeight.value = s.weight;
     if (sliderGap) sliderGap.value = s.gap;
@@ -5671,6 +5916,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const alignGroup = document.getElementById('tvk-align-group');
     const animGroup = document.getElementById('tvk-anim-group');
+    const upNextGroup = document.getElementById('tvk-upnext-group');
 
     const sliderSize = document.getElementById('tvk-size');
     const sliderWeight = document.getElementById('tvk-weight');
@@ -5763,6 +6009,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
+    if (upNextGroup) {
+      upNextGroup.querySelectorAll('.tvk-pill-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const current = getTvk();
+          current.upNextPlacement = btn.dataset.value === 'above' ? 'above' : 'below';
+          saveTvk(current);
+          applyTvk();
+          syncTvkUI();
+        });
+      });
+    }
+
     const onTvkInput = () => {
       const current = getTvk();
       const tvk = {
@@ -5774,6 +6033,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         anim: (selAnim && selAnim.value) || current.anim || 'smooth',
         speed: Number(sliderSpeed && sliderSpeed.value) || 350
       };
+      tvk.upNextPlacement = current.upNextPlacement === 'above' ? 'above' : 'below';
       saveTvk(tvk);
       applyTvk();
       if (valSize) valSize.textContent = `${tvk.size}%`;
@@ -5875,6 +6135,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncTvkUI();
       });
     }
+
+    initTvkUpNext();
   }
 
   function openCustomLyricsEditor() {
@@ -6337,6 +6599,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (h.length > 200) h.shift();
   }
 
+  // What plays next, without moving the queue. Shuffle plans its next song the same way playback will,
+  // and repeat-all wraps around to the first playable song.
+  function peekNextQueueTrack() {
+    const q = state.queue || [];
+    if (!q.length || state.queueIndex < 0 || state.queueIndex >= q.length) return null;
+    if (state.isShuffle) {
+      if (q.length < 2) return null;
+      return planShuffleNext();
+    }
+    let idx = state.queueIndex + 1;
+    while (idx < q.length && isBlocked(q[idx])) idx++;
+    if (idx < q.length) return q[idx];
+    if (state.repeatMode === 'all') {
+      idx = 0;
+      while (idx < state.queueIndex && isBlocked(q[idx])) idx++;
+      if (idx < state.queueIndex) return q[idx];
+    }
+    return null;
+  }
+
+  // Remove one upcoming song from the queue (the Up Next preview), keeping the current song and the
+  // history indices pointing at the same songs. Returns what now plays next.
+  function removeUpcomingQueueTrack(track) {
+    const q = state.queue || [];
+    let idx = q.indexOf(track);
+    if (idx < 0) idx = q.findIndex(t => t !== q[state.queueIndex] && isSameTrack(t, track));
+    if (idx < 0 || idx === state.queueIndex) return null;
+    q.splice(idx, 1);
+    if (idx < state.queueIndex) state.queueIndex = Math.max(0, state.queueIndex - 1);
+    state.queueHistory = (state.queueHistory || [])
+      .map(i => (i > idx ? i - 1 : i))
+      .filter(i => i >= 0 && i < q.length);
+    if (!state.queueHistory.length) state.queueHistory = [Math.max(0, state.queueIndex)];
+    if (Array.isArray(shuffleBag.next)) shuffleBag.next = shuffleBag.next.filter(t => t !== track);
+    if (shuffleBag.planned === track) shuffleBag.planned = null;
+    state.nextTrackPrefetched = false;
+    updateQueueBadge();
+    scheduleQueueSave();
+    return peekNextQueueTrack();
+  }
+
   function playNext() {
     advancing = true;
     try { playNextSong(); } finally { advancing = false; }
@@ -6474,7 +6777,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // only looks up the one song that plays next, and only near the end of this one. Phones download
     // whole songs to play them, so they start on that halfway through.
     function prefetchNextQueueTrack() {
-      const nextTrack = state.isShuffle ? planShuffleNext() : (state.queue && state.queue.slice(state.queueIndex + 1).find((t) => !isBlocked(t)));
+      const nextTrack = peekNextQueueTrack();
       if (!nextTrack || nextTrack.platform === 'local' || !(nextTrack.url || nextTrack.id)) return;
       const q = `url=${encodeURIComponent(nextTrack.url || '')}&id=${encodeURIComponent(nextTrack.id || '')}&platform=${nextTrack.platform || state.platform}&title=${encodeURIComponent(nextTrack.title || '')}&artist=${encodeURIComponent(nextTrack.artist || '')}&duration=${encodeURIComponent(nextTrack.duration || 0)}&thumbnail=${encodeURIComponent(nextTrack.thumbnail || '')}`;
       fetch(`http://127.0.0.1:${state.serverPort}/api/${isPhoneApp ? 'stream-info' : 'prefetch'}?${q}&next=1`).catch(() => {});
@@ -6657,6 +6960,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? el.nativeAudio.duration
         : (state.currentTrack && Number.isFinite(state.currentTrack.duration) ? state.currentTrack.duration : 0);
       if (state.isTvKaraokeOpen) syncTvkProgress(cur, dur);
+      if (state.isTvKaraokeOpen) maybeShowTvkUpNextAuto(cur, dur);
       if (miniLyricsShown()) updateMiniLyricsHighlight(cur);
 
       // Crossfade (off by default): fade the song out over its last X seconds while it keeps playing; the
@@ -8092,6 +8396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (track.platform !== 'local') {
       items.push({ label: 'Download…', run: () => openDownloadModal(track) });
     }
+    items.push({ label: 'Save cover art', run: () => saveTrackCoverArt(track) });
     if (context === 'playlist') {
       items.push({ label: 'Remove from playlist', danger: true, run: () => removeTrackFromCurrentPlaylist(track) });
     }
@@ -9036,6 +9341,187 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (track.localThumbnail) return track.localThumbnail;
     return track.thumbnail || track.cover || track.image || track.artworkUrl || derivedTrackArt(track)[0] || '';
   }
+
+  // ---- Save cover art (#2): the song's best picture, through a save dialog ----
+  // "Track - Artist", with the characters no file name may hold taken out
+  function coverArtFileBase(track) {
+    const title = String((track && track.title) || '').trim();
+    const artist = String((track && track.artist) || '').trim();
+    const base = title
+      ? (artist && !/^unknown artist$/i.test(artist) ? `${title} - ${artist}` : title)
+      : (artist || 'Cover art');
+    return base.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\.+/, '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'Cover art';
+  }
+
+  // the picture types the saver accepts, by their first bytes (a host may send anything)
+  function imageMimeForBuffer(buf) {
+    const b = new Uint8Array(buf || []);
+    if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8) return 'image/jpeg';
+    if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+    if (b.length > 12 && String.fromCharCode(b[0], b[1], b[2], b[3]) === 'RIFF' && String.fromCharCode(b[8], b[9], b[10], b[11]) === 'WEBP') return 'image/webp';
+    if (b.length > 6 && String.fromCharCode(b[0], b[1], b[2]) === 'GIF') return 'image/gif';
+    try {
+      if (/^\s*<(\?xml[^>]*>\s*)?svg[\s>]/i.test(new TextDecoder().decode(b.slice(0, 256)))) return 'image/svg+xml';
+    } catch (e) {}
+    return '';
+  }
+
+  // a JPEG's size, from its frame header: YouTube answers a missing maxres/sd cover with a 120x90 picture
+  function jpegPixelSize(buf) {
+    const b = new Uint8Array(buf || []);
+    let i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] !== 0xff) { i++; continue; }
+      const marker = b[i + 1];
+      if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) { i += 2; continue; }
+      const len = (b[i + 2] << 8) | b[i + 3];
+      if (len < 2) return null;
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { h: (b[i + 5] << 8) | b[i + 6], w: (b[i + 7] << 8) | b[i + 8] };
+      }
+      i += 2 + len;
+    }
+    return null;
+  }
+
+  function imageExtensionForMime(mime) {
+    if (mime === 'image/png') return 'png';
+    if (mime === 'image/webp') return 'webp';
+    if (mime === 'image/gif') return 'gif';
+    if (mime === 'image/svg+xml') return 'svg';
+    return 'jpg';
+  }
+
+  // the biggest picture a song has, best first: a picked cover, YouTube's maxres/sd, SoundCloud's original
+  function coverArtDownloadCandidates(track) {
+    if (!track) return [];
+    const out = [];
+    const add = (u) => { if (u && typeof u === 'string' && !out.includes(u)) out.push(u); };
+    add(getTrackArt(track).cover);
+    add(track.localThumbnail);
+    const ytId = trackYoutubeId(track);
+    if (ytId) ['maxresdefault', 'sddefault', 'hqdefault'].forEach((s) => add(`https://i.ytimg.com/vi/${ytId}/${s}.jpg`));
+    [track.thumbnail, track.cover, track.image, track.artworkUrl].forEach((u) => {
+      if (!u) return;
+      if (/sndcdn\.com/.test(String(u))) {
+        const m = String(u).match(/^(.*)-(t500x500|original|large|crop|t300x300)(\.[a-z0-9]+(?:\?.*)?)$/i);
+        if (m) { add(`${m[1]}-original${m[3]}`); add(`${m[1]}-t500x500${m[3]}`); }
+      }
+      add(u);
+      artVariants(u).forEach(add);
+    });
+    // the same candidates the player walks down (the in-app proxy is tried separately, only when a host fails)
+    trackArtCandidates(track).forEach((u) => { if (!/^http:\/\/127\.0\.0\.1/.test(u)) add(u); });
+    return out;
+  }
+
+  async function fetchCoverArtBytes(url, timeoutMs = 8000) {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, timeoutMs) : null;
+    try {
+      const res = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'force-cache', signal: ctrl ? ctrl.signal : undefined });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      if (!buf.byteLength || buf.byteLength > 12 * 1024 * 1024) throw new Error('Bad size');
+      const mime = imageMimeForBuffer(buf);
+      if (!mime) throw new Error('Not a picture');
+      return { buf, mime };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  function coverBufferToBase64(buf) {
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(bin);
+  }
+
+  let coverArtSaveBusy = false;
+
+  async function saveTrackCoverArt(track, opts) {
+    track = track || state.currentTrack;
+    if (!track || coverArtSaveBusy) return;
+    const api = window.electronAPI;
+    if (!api || typeof api.saveImageFile !== 'function') {
+      showToast(Tm("Couldn't save the cover art"), 'error');
+      return;
+    }
+    coverArtSaveBusy = true;
+    const btn = (opts && opts.button) || null;
+    if (btn) btn.disabled = true;
+    const defaultName = coverArtFileBase(track);
+    // several dead hosts must not keep the person waiting: after this, the iTunes cover or an answer
+    const deadline = Date.now() + 25000;
+    try {
+      for (const url of coverArtDownloadCandidates(track).slice(0, 8)) {
+        if (Date.now() > deadline) break;
+        if (/^file:/i.test(url)) {
+          // a cover picked from this device: main.js reads the file itself
+          let r = null;
+          try { r = await api.saveImageFile({ fileUrl: url, defaultName }); } catch (e) { r = null; }
+          if (r && r.canceled) return;
+          if (r && r.success) { showToast(Tm('Cover art saved'), 'success'); return; }
+          continue;
+        }
+        if (!/^https?:\/\//i.test(url)) continue;
+        let data = null;
+        try { data = await fetchCoverArtBytes(url); } catch (e) { data = null; }
+        // a host that blocks the page or is down: the app's server fetches it (and does not pass off another cover)
+        if (!data && !isPhoneApp && state.serverPort && !url.startsWith(`http://127.0.0.1:${state.serverPort}/`)) {
+          try {
+            data = await fetchCoverArtBytes(tokenUrl(`http://127.0.0.1:${state.serverPort}/api/image-proxy?url=${encodeURIComponent(url)}&fallback=0`));
+          } catch (e) { data = null; }
+        }
+        if (!data) continue;
+        // YouTube's stand-in for a missing large cover is 120x90: that is not the best picture
+        if (data.mime === 'image/jpeg' && /ytimg\.com\/vi\/[^/]+\/(maxres|sd)default\.jpg/.test(url)) {
+          const size = jpegPixelSize(data.buf);
+          if (size && (size.w < 400 || size.h < 300)) continue;
+        }
+        const r = await api.saveImageFile({
+          base64: coverBufferToBase64(data.buf), mime: data.mime, ext: imageExtensionForMime(data.mime), defaultName,
+        });
+        if (r && r.canceled) return;
+        if (r && r.success) { showToast(Tm('Cover art saved'), 'success'); return; }
+        // if writing failed, another picture would fail the same way
+        showToast(Tm("Couldn't save the cover art"), 'error');
+        return;
+      }
+      // nothing on the song: Apple Music's cover for it, by artist and title (computers)
+      if (!isPhoneApp && state.serverPort && track.title) {
+        try {
+          const data = await fetchCoverArtBytes(tokenUrl(`http://127.0.0.1:${state.serverPort}/api/image-proxy?artist=${encodeURIComponent(track.artist || '')}&title=${encodeURIComponent(track.title)}`));
+          const r = await api.saveImageFile({
+            base64: coverBufferToBase64(data.buf), mime: data.mime, ext: imageExtensionForMime(data.mime), defaultName,
+          });
+          if (r && r.canceled) return;
+          if (r && r.success) { showToast(Tm('Cover art saved'), 'success'); return; }
+        } catch (e) {}
+      }
+      showToast(Tm('No cover art available'), 'info');
+    } catch (e) {
+      showToast(Tm("Couldn't save the cover art"), 'error');
+    } finally {
+      coverArtSaveBusy = false;
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // right-clicking the playbar picture saves it too (the download menu's button is the keyboard path)
+  (function bindPlaybarCoverSave() {
+    const wrap = document.getElementById('playbar-artwork-wrapper');
+    if (!wrap) return;
+    wrap.addEventListener('contextmenu', (e) => {
+      if (!state.currentTrack) return;
+      e.preventDefault();
+      saveTrackCoverArt(state.currentTrack);
+    });
+  })();
 
   // A song's cover that loaded in place of its saved (missing or dead) one is saved with the song.
   function rememberTrackArt(canonicalId, url) {
@@ -10744,6 +11230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.btnTvkRepeat.setAttribute('aria-label', T(REPEAT_TITLES[state.repeatMode]));
       el.btnTvkRepeat.setAttribute('aria-pressed', String(state.repeatMode !== 'off'));
     }
+    if (typeof refreshTvkUpNext === 'function') refreshTvkUpNext();
     window.dispatchEvent(new Event('muriel:modes'));
   }
   setRepeatMode(state.repeatMode);
@@ -15894,6 +16381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (el.downloadPreviewThumb) el.downloadPreviewThumb.style.display = 'none';
       if (el.downloadPreviewFallback) el.downloadPreviewFallback.style.display = 'flex';
     }
+    if (el.btnSaveCoverArt) el.btnSaveCoverArt.style.display = '';
 
     updateDownloadBtnLabel();
     updateLosslessQualityState();
@@ -15935,10 +16423,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (el.downloadPreviewArtist) I18N.text(el.downloadPreviewArtist, tracks.length === 1 ? '1 track' : '{0} tracks', tracks.length);
     if (el.downloadPreviewThumb) el.downloadPreviewThumb.style.display = 'none';
     if (el.downloadPreviewFallback) el.downloadPreviewFallback.style.display = 'none';
+    if (el.btnSaveCoverArt) el.btnSaveCoverArt.style.display = 'none';
     updateDownloadBtnLabel();
     updateLosslessQualityState();
     updateDownloadCaptionPath();
     openModal(el.downloadModal);
+  }
+
+  if (el.btnSaveCoverArt) {
+    el.btnSaveCoverArt.addEventListener('click', () => {
+      if (trackToDownload) saveTrackCoverArt(trackToDownload, { button: el.btnSaveCoverArt });
+    });
   }
 
   function setDownloadFormat(fmt) {
@@ -19236,6 +19731,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (value === 'end') {
       state.sleepTimer = { mode: 'end' };
       updateSleepTimerUI();
+      if (typeof refreshTvkUpNext === 'function') refreshTvkUpNext();
       showToast(Tm('Sleep timer: end of track'));
       return;
     }

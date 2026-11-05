@@ -3082,6 +3082,8 @@ async function handleImageProxy(req, res, parsedUrl) {
   const target = String(parsedUrl.query.url || '');
   const artist = String(parsedUrl.query.artist || '').slice(0, 200);
   const title = String(parsedUrl.query.title || '').slice(0, 300);
+  // fallback=0: only the picture asked for (saving cover art must not pass off the iTunes cover instead)
+  const allowFallback = String(parsedUrl.query.fallback || '') !== '0';
   if ((target && !/^https?:\/\//i.test(target)) || target.length > 2048 || (!target && !title)) { res.writeHead(400); return res.end(); }
   let buffer = null;
   if (target) {
@@ -3091,7 +3093,7 @@ async function handleImageProxy(req, res, parsedUrl) {
     buffer = await fetchProxiedImage(target);
     if (buffer) fs.promises.writeFile(cachePath, buffer).catch(() => {});
   }
-  if (!buffer && title) {
+  if (!buffer && title && allowFallback) {
     const coverKey = crypto.createHash('sha1').update(`${artist}\u0000${title}`.toLowerCase()).digest('hex').slice(0, 16);
     const coverPath = path.join(THUMBNAILS_DIR, `cover-${coverKey}.jpg`);
     try { buffer = await fs.promises.readFile(coverPath); } catch (e) {

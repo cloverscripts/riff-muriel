@@ -397,6 +397,54 @@ function runGUI() {
       // YouTube / YouTube Music library import through a Google login (its own browser storage per profile)
       require('./google-library').register(() => mainWindow);
 
+      // Cover art (the download menu and the playbar picture): the page hands over the picture bytes, or the
+      // file it picked, and the person chooses where it goes. The extension comes from the picture itself.
+      const imageExtOfBuffer = (buf) => {
+        if (!buf || buf.length < 4) return '';
+        if (buf[0] === 0xff && buf[1] === 0xd8) return 'jpg';
+        if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
+        if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+        if (buf.toString('ascii', 0, 3) === 'GIF') return 'gif';
+        if (/^\s*<(\?xml[^>]*>\s*)?svg[\s>]/i.test(buf.toString('utf8', 0, 256))) return 'svg';
+        return '';
+      };
+      ipcMain.removeHandler('save-image-file');
+      ipcMain.handle('save-image-file', async (event, payload) => {
+        const p = payload || {};
+        let buf = null;
+        if (typeof p.base64 === 'string' && p.base64 && p.base64.length <= 16 * 1024 * 1024) {
+          try { buf = Buffer.from(p.base64, 'base64'); } catch (e) { buf = null; }
+        } else if (typeof p.fileUrl === 'string' && p.fileUrl) {
+          try {
+            const u = new URL(p.fileUrl);
+            if (u.protocol !== 'file:') return { success: false, error: 'Not a picture' };
+            buf = await fs.promises.readFile(fileURLToPath(u));
+          } catch (e) {
+            return { success: false, error: 'Not a picture' };
+          }
+        }
+        if (!buf || buf.length < 100 || buf.length > 16 * 1024 * 1024) return { success: false, error: 'Nothing to save' };
+        const ext = imageExtOfBuffer(buf);
+        if (!ext) return { success: false, error: 'Not a picture' };
+        const raw = path.basename(String(p.defaultName || 'cover art')).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\.+/, '');
+        const name = `${raw.replace(/\.[a-z0-9]{1,5}$/i, '').trim().slice(0, 150) || 'cover art'}.${ext}`;
+        const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+        const r = await dialog.showSaveDialog(win, {
+          title: 'Save cover art',
+          defaultPath: path.join(app.getPath('pictures'), name),
+          filters: [{ name: 'Image', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'] }],
+        });
+        if (r.canceled || !r.filePath) return { canceled: true };
+        try {
+          // someone who typed a name without an extension still gets a picture file
+          const target = path.extname(r.filePath) ? r.filePath : `${r.filePath}.${ext}`;
+          await fs.promises.writeFile(target, buf);
+          return { success: true, path: target };
+        } catch (e) {
+          return { success: false, error: "Couldn't write the file there" };
+        }
+      });
+
       // playlist files and profile backups (backup.js): the page hands over the text, the person picks where it goes
       ipcMain.removeHandler('save-text-file');
       ipcMain.handle('save-text-file', async (event, payload) => {
