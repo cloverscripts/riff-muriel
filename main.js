@@ -6,7 +6,7 @@ const { pathToFileURL, fileURLToPath } = require('url');
 const { spawn } = require('child_process');
 const crypto = require('crypto');
 const { LIBRARY_DIR, DATA_DIR, resolveBinary, tutorialDone, markTutorialDone, readStartupConfig, writeStartupConfig } = require('./platform');
-const { getLauncherInfo, installLauncher } = require('./launcher');
+const { APP_ID, getLauncherInfo, installLauncher, repairWindowsShortcuts, pointPinsAtRunningApp, pointPinsAtInstall } = require('./launcher');
 const { getSystemAudioOutputInfo } = require('./audio-output');
 const { log, tail, LOG_DIR } = require('./logger');
 const logger = { log, tail, LOG_DIR, error: (msg, err) => log('ERROR', `${msg}: ${err && err.message ? err.message : err}`) };
@@ -109,7 +109,7 @@ function runGUI() {
 
   let mainWindow = null;
   // Must match build.appId so the NSIS shortcut, pinned icons and the running window share one taskbar identity.
-  if (process.platform === 'win32') app.setAppUserModelId('io.github.cloverscripts.muriel');
+  if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
   const gotLock = app.requestSingleInstanceLock();
   if (!gotLock) { app.quit(); return; }
   app.on('second-instance', () => {
@@ -125,6 +125,29 @@ function runGUI() {
   let trayOnClose = process.platform !== 'linux';
   let isMiniWindow = false;
   let preMiniBounds = null;
+
+  // Electron's default View menu zooms the page for Ctrl+- but its Ctrl++ accelerator never fires on Windows
+  // (#41). Muriel has its own UI scale, handled in the renderer, so keep the useful View roles and leave the
+  // native zoom items (and their mismatched shortcuts) out.
+  function installAppMenu() {
+    const template = [
+      ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'togglefullscreen' }
+        ]
+      },
+      { role: 'windowMenu' }
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  }
 
   const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
 
@@ -255,6 +278,18 @@ function runGUI() {
       if (!mainWindow || mainWindow.isDestroyed()) return;
       mainWindow.show();
     });
+
+    // Hiding to the tray removes the taskbar button, so clicking the pin has to launch the shortcut target.
+    // While hidden, point Muriel's pins at the running executable; restoring the window then only starts a
+    // second process that hands focus back instead of re-extracting the portable build (#23).
+    if (process.platform === 'win32') {
+      mainWindow.on('hide', () => {
+        try { pointPinsAtRunningApp(); } catch (e) {}
+      });
+      mainWindow.on('show', () => {
+        try { pointPinsAtInstall(); } catch (e) {}
+      });
+    }
 
     mainWindow.loadFile(path.join(__dirname, firstRun ? 'welcome.html' : 'index.html'));
     if (firstRun) {
@@ -783,10 +818,14 @@ function runGUI() {
 
       app.on('before-quit', () => {
         isQuitting = true;
+        // never leave a pin pointing at the extracted copy: the portable stub deletes it on exit
+        try { pointPinsAtInstall(); } catch (e) {}
       });
 
       app.whenReady().then(() => {
+        installAppMenu();
         setupTray();
+        try { repairWindowsShortcuts(); } catch (e) { logger.error('Shortcut repair failed', e); }
         createWindow();
         app.on('activate', () => {
           // the Dock icon brings back a window that was closed to the tray
