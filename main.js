@@ -6,7 +6,7 @@ const { pathToFileURL, fileURLToPath } = require('url');
 const { spawn } = require('child_process');
 const crypto = require('crypto');
 const { LIBRARY_DIR, DATA_DIR, resolveBinary, tutorialDone, markTutorialDone, readStartupConfig, writeStartupConfig } = require('./platform');
-const { getLauncherInfo, installLauncher } = require('./launcher');
+const { APP_ID, getLauncherInfo, installLauncher, repairWindowsShortcuts } = require('./launcher');
 const { getSystemAudioOutputInfo } = require('./audio-output');
 const { log, tail, LOG_DIR } = require('./logger');
 const logger = { log, tail, LOG_DIR, error: (msg, err) => log('ERROR', `${msg}: ${err && err.message ? err.message : err}`) };
@@ -109,7 +109,7 @@ function runGUI() {
 
   let mainWindow = null;
   // Must match build.appId so the NSIS shortcut, pinned icons and the running window share one taskbar identity.
-  if (process.platform === 'win32') app.setAppUserModelId('io.github.cloverscripts.muriel');
+  if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
   const gotLock = app.requestSingleInstanceLock();
   if (!gotLock) { app.quit(); return; }
   app.on('second-instance', () => {
@@ -811,6 +811,7 @@ function runGUI() {
       app.whenReady().then(() => {
         installAppMenu();
         setupTray();
+        try { repairWindowsShortcuts(); } catch (e) { logger.error('Shortcut repair failed', e); }
         createWindow();
         app.on('activate', () => {
           // the Dock icon brings back a window that was closed to the tray

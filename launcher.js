@@ -6,10 +6,26 @@ const { execFile } = require('child_process');
 
 const NAME = 'Muriel';
 const COMMENT = 'Muriel - music player';
-const APP_ID = '';
+// Must match build.appId and the ID main.js gives the process, so the Start Menu shortcut, a pinned taskbar
+// icon and the running window all share one taskbar identity (#23).
+const APP_ID = 'io.github.cloverscripts.muriel';
 
 function winShortcutPath() {
   return path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', `${NAME}.lnk`);
+}
+
+function quickLaunchDir() {
+  return path.join(app.getPath('appData'), 'Microsoft', 'Internet Explorer', 'Quick Launch');
+}
+
+function winTaskbarShortcutPath() {
+  return path.join(quickLaunchDir(), 'User Pinned', 'TaskBar', `${NAME}.lnk`);
+}
+
+// Pins made from a running window have no matching Start Menu shortcut, so Windows stores them in an
+// ImplicitAppShortcuts\<id> folder instead of the TaskBar folder.
+function implicitAppShortcutsDir() {
+  return path.join(quickLaunchDir(), 'ImplicitAppShortcuts');
 }
 
 function linuxDesktopPath() {
@@ -32,14 +48,86 @@ function getLauncherInfo() {
   return { platform: process.platform, canInstall: false, installed: false, reason: 'Not supported on this system' };
 }
 
-function installWindows() {
-  const lnk = winShortcutPath();
-  if (fs.existsSync(lnk)) return { ok: true };
-  const target = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+// The portable build runs from a temporary folder, so process.execPath disappears when the app closes.
+// Shortcuts have to point at the outer portable launcher instead.
+function launchTarget() {
+  return process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+}
+
+function writeWindowsShortcut(lnk, target) {
   fs.mkdirSync(path.dirname(lnk), { recursive: true });
   const options = { target, cwd: path.dirname(target), description: COMMENT, icon: target, iconIndex: 0 };
   if (APP_ID) options.appUserModelId = APP_ID;
-  return { ok: shell.writeShortcutLink(lnk, 'create', options) };
+  return shell.writeShortcutLink(lnk, fs.existsSync(lnk) ? 'replace' : 'create', options);
+}
+
+// Windows derives a shortcut's AppUserModelID from its target unless one is written into the link. Only touch
+// links that launch Muriel (or already carry our ID).
+function isMurielShortcut(details) {
+  if (!details) return false;
+  if (details.appUserModelId === APP_ID) return true;
+  return path.basename(String(details.target || '')).toLowerCase() === `${NAME.toLowerCase()}.exe`;
+}
+
+function samePath(a, b) {
+  if (!a || !b) return false;
+  return path.normalize(a).toLowerCase() === path.normalize(b).toLowerCase();
+}
+
+function repairWindowsShortcut(lnk, target) {
+  try {
+    if (!fs.existsSync(lnk)) return false;
+    const details = shell.readShortcutLink(lnk);
+    if (!isMurielShortcut(details)) return false;
+    const upToDate = samePath(details.target, target) && details.appUserModelId === APP_ID && samePath(details.icon, target);
+    if (upToDate) return true;
+    return writeWindowsShortcut(lnk, target);
+  } catch (e) {
+    return false;
+  }
+}
+
+function shortcutsIn(dir) {
+  const found = [];
+  let entries = [];
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return found; }
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.lnk')) continue;
+    const lnk = path.join(dir, entry.name);
+    try {
+      if (isMurielShortcut(shell.readShortcutLink(lnk))) found.push(lnk);
+    } catch (e) {}
+  }
+  return found;
+}
+
+function pinnedMurielShortcuts() {
+  const found = shortcutsIn(path.dirname(winTaskbarShortcutPath()));
+  let groups = [];
+  try { groups = fs.readdirSync(implicitAppShortcutsDir(), { withFileTypes: true }); } catch (e) {}
+  for (const group of groups) {
+    if (group.isDirectory()) found.push(...shortcutsIn(path.join(implicitAppShortcutsDir(), group.name)));
+  }
+  return found;
+}
+
+// Pins and Start Menu entries created by older builds point at the temporary extraction path and carry no
+// AppUserModelID, which is why Windows showed a second icon next to the pin and stopped opening the app after
+// an update. Rewrite Muriel's shortcuts on every start so they always launch the current build under the shared
+// ID (#23). Other applications' pins are left alone.
+function repairWindowsShortcuts() {
+  if (process.platform !== 'win32' || !app.isPackaged) return { ok: false, repaired: [] };
+  const target = launchTarget();
+  const links = [winShortcutPath(), ...pinnedMurielShortcuts()];
+  const repaired = [];
+  for (const lnk of new Set(links)) {
+    if (repairWindowsShortcut(lnk, target)) repaired.push(lnk);
+  }
+  return { ok: repaired.length > 0, repaired };
+}
+
+function installWindows() {
+  return { ok: writeWindowsShortcut(winShortcutPath(), launchTarget()) };
 }
 
 function quoteExec(file) {
@@ -90,4 +178,4 @@ function installLauncher() {
   return { ok: false };
 }
 
-module.exports = { getLauncherInfo, installLauncher };
+module.exports = { APP_ID, getLauncherInfo, installLauncher, repairWindowsShortcuts };
