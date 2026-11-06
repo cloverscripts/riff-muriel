@@ -6,7 +6,7 @@ const { pathToFileURL, fileURLToPath } = require('url');
 const { spawn } = require('child_process');
 const crypto = require('crypto');
 const { LIBRARY_DIR, DATA_DIR, resolveBinary, tutorialDone, markTutorialDone, readStartupConfig, writeStartupConfig } = require('./platform');
-const { APP_ID, getLauncherInfo, installLauncher, repairWindowsShortcuts } = require('./launcher');
+const { APP_ID, getLauncherInfo, installLauncher, repairWindowsShortcuts, pointPinsAtRunningApp, pointPinsAtInstall } = require('./launcher');
 const { getSystemAudioOutputInfo } = require('./audio-output');
 const { log, tail, LOG_DIR } = require('./logger');
 const logger = { log, tail, LOG_DIR, error: (msg, err) => log('ERROR', `${msg}: ${err && err.message ? err.message : err}`) };
@@ -278,6 +278,18 @@ function runGUI() {
       if (!mainWindow || mainWindow.isDestroyed()) return;
       mainWindow.show();
     });
+
+    // Hiding to the tray removes the taskbar button, so clicking the pin has to launch the shortcut target.
+    // While hidden, point Muriel's pins at the running executable; restoring the window then only starts a
+    // second process that hands focus back instead of re-extracting the portable build (#23).
+    if (process.platform === 'win32') {
+      mainWindow.on('hide', () => {
+        try { pointPinsAtRunningApp(); } catch (e) {}
+      });
+      mainWindow.on('show', () => {
+        try { pointPinsAtInstall(); } catch (e) {}
+      });
+    }
 
     mainWindow.loadFile(path.join(__dirname, firstRun ? 'welcome.html' : 'index.html'));
     if (firstRun) {
@@ -806,6 +818,8 @@ function runGUI() {
 
       app.on('before-quit', () => {
         isQuitting = true;
+        // never leave a pin pointing at the extracted copy: the portable stub deletes it on exit
+        try { pointPinsAtInstall(); } catch (e) {}
       });
 
       app.whenReady().then(() => {

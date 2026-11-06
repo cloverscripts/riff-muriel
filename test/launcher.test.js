@@ -109,6 +109,25 @@ winOnly('repairs a pin Windows stored under ImplicitAppShortcuts', () => {
   assert.strictEqual(details.appUserModelId, launcher.APP_ID);
 });
 
+winOnly('points pins at the running executable while the window is hidden in the tray', () => {
+  reset();
+  addLink(TASKBAR, { target: EXE, icon: EXE, appUserModelId: launcher.APP_ID });
+  const result = launcher.pointPinsAtRunningApp();
+  assert.deepStrictEqual(result.retargeted, [TASKBAR]);
+  const details = links.get(path.resolve(TASKBAR));
+  assert.strictEqual(details.target, process.execPath);
+  assert.strictEqual(details.appUserModelId, launcher.APP_ID);
+});
+
+winOnly('puts the stable target back when the window is shown again', () => {
+  reset();
+  addLink(TASKBAR, { target: process.execPath, icon: process.execPath, appUserModelId: launcher.APP_ID });
+  launcher.pointPinsAtInstall();
+  const details = links.get(path.resolve(TASKBAR));
+  assert.strictEqual(details.target, EXE);
+  assert.strictEqual(details.icon, EXE);
+});
+
 winOnly('leaves other applications pinned to the taskbar alone', () => {
   reset();
   const other = path.join(TASKBAR_DIR, 'Other.lnk');

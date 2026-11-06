@@ -126,6 +126,26 @@ function repairWindowsShortcuts() {
   return { ok: repaired.length > 0, repaired };
 }
 
+function retargetPinnedShortcuts(target) {
+  if (process.platform !== 'win32' || !app.isPackaged) return { ok: false, retargeted: [] };
+  const retargeted = [];
+  for (const lnk of new Set(pinnedMurielShortcuts())) {
+    if (repairWindowsShortcut(lnk, target)) retargeted.push(lnk);
+  }
+  return { ok: retargeted.length > 0, retargeted };
+}
+
+// A window hidden in the tray has no taskbar button, so clicking the pin launches its target. Point pins at
+// the extracted executable while hidden: restoring then costs one process start instead of re-extracting the
+// whole portable build. The Start Menu shortcut keeps the stable target, so there is always a working entry.
+function pointPinsAtRunningApp() {
+  return retargetPinnedShortcuts(process.execPath);
+}
+
+function pointPinsAtInstall() {
+  return retargetPinnedShortcuts(launchTarget());
+}
+
 function installWindows() {
   return { ok: writeWindowsShortcut(winShortcutPath(), launchTarget()) };
 }
@@ -178,4 +198,4 @@ function installLauncher() {
   return { ok: false };
 }
 
-module.exports = { APP_ID, getLauncherInfo, installLauncher, repairWindowsShortcuts };
+module.exports = { APP_ID, getLauncherInfo, installLauncher, repairWindowsShortcuts, pointPinsAtRunningApp, pointPinsAtInstall };
