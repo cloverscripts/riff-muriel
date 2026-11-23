@@ -369,7 +369,10 @@ function runGUI() {
       if (mainLogCount < 20) {
         mainLogCount++;
         if (data && typeof data === 'object') {
-          logger.log(data.level || 'ERROR', data.message || '', data.stack || null);
+          // log() takes (level, message): the stack goes into the message, and the level is one of a few words
+          const level = ['ERROR', 'WARN', 'INFO'].includes(String(data.level).toUpperCase()) ? String(data.level).toUpperCase() : 'ERROR';
+          // one entry per line: a newline in the text would start what looks like another log entry
+          logger.log(level, [data.message || '', data.stack || ''].filter(Boolean).join(' | ').replace(/[\r\n]+/g, ' ⏎ '));
         }
       }
     });

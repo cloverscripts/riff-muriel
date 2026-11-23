@@ -70,7 +70,8 @@ function renderNonLatin(word, cols, rows) {
 }
 
 function renderWord(rawWord) {
-  const cleanWord = rawWord.replace(/[,.!?:;"'()[\]«»—–-、。「」]/g, '').trim();
+  // control characters out first: lyrics come from outside providers, and an escape sequence would be run by the terminal
+  const cleanWord = rawWord.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').replace(/[,.!?:;"'()[\]«»—–-、。「」]/g, '').trim();
 
   if (!cleanWord) return;
 

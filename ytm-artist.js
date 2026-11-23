@@ -8,7 +8,7 @@ const VIDEO_ID = /^[\w-]{11}$/;
 const channelId = (v) => (CHANNEL_ID.test(String(v || '')) ? String(v) : undefined);
 const runsText = (t) => ((t && t.runs) || []).map((r) => r.text).join('').trim();
 // case, accents, spaces and punctuation aside (NFKD splits the accents off as marks, which the filter drops)
-const fold = (s) => String(s || '').normalize('NFKD').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const fold = (s) => String(s || '').normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f\u20d0-\u20ff\ufe00-\ufe0f]/g, '').replace(/[^\p{L}\p{N}\p{M}]/gu, '');
 // "NobodyKnows", "NOBODYKNOWS - Topic" and "Nobodyknows+" are the same name
 const nameKey = (s) => fold(String(s || '').replace(/\s*-\s*Topic$/i, ''));
 // "Nevermind (Remastered)" on one service is "Nevermind" on another; iTunes calls singles "Song - Single"

@@ -137,7 +137,10 @@ window.fetch = async (input, init = {}) => {
   if (r.status >= 500 && url.includes('/api/stream-info') && Date.now() - started < 6000) {
     murielLog('warn', `stream-info failed (${r.status}), retrying: ${r.body.slice(0, 120)}`);
     await new Promise((res) => setTimeout(res, 1200));
+    // a skip during the wait or the retry is a cancel, not a failed song
+    if (init.signal && init.signal.aborted) throw abortError();
     r = await call(url, init);
+    if (r.aborted || (init.signal && init.signal.aborted)) throw abortError();
   }
   if (r.file) return pageFetch(await fileUrlFor(r.file));
   return new Response(r.status === 204 ? null : r.body, { status: r.status, headers: r.headers });

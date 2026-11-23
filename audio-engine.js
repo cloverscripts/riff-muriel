@@ -547,6 +547,8 @@
         this.masterGain.gain.exponentialRampToValueAtTime(
           Math.max(0.001, targetVol), this.ctx.currentTime + durationSec
         );
+        // an exponential ramp can't reach 0: muted (or volume 0) has to end at silence, not at -60 dB
+        if (targetVol <= 0) this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime + durationSec);
       }
     }
 
@@ -701,9 +703,6 @@
         limiter.attack.value = 0.005;
         limiter.release.value = 0.05;
 
-        const master = offline.createGain();
-        master.gain.value = s.volume;
-
         src.connect(comp);
         comp.connect(bass);
         bass.connect(vocal);
@@ -711,61 +710,60 @@
         air.connect(sat);
         sat.connect(limiter);
         limiter.connect(eqL);
-        offlineEqTail.connect(master);
-        master.connect(offline.destination);
-
       } else {
-        const dry = offline.createGain();
-        const distNode = offline.createWaveShaper();
-        distNode.oversample = 'none';
-        const distGain = offline.createGain();
-        const delay = offline.createDelay(1.0);
-        delay.delayTime.value = 0.3;
-        const feedback = offline.createGain();
-        feedback.gain.value = 0.35;
-        const echoGain = offline.createGain();
-        const conv = offline.createConvolver();
-        conv.buffer = this._createReverbImpulse(offline);
-        const revGain = offline.createGain();
-        const master = offline.createGain();
-
-        revGain.gain.value = s.reverb / 100;
-        echoGain.gain.value = s.echo / 100;
-
-        if (s.distortion > 0) {
-          distNode.curve = this._makeDistortionCurve(s.distortion);
-          distGain.gain.value = (s.distortion / 100) * 0.75;
-          dry.gain.value = 1.0 - (s.distortion / 100) * 0.4;
-        } else {
-          distNode.curve = this._makeDistortionCurve(0);
-          distGain.gain.value = 0.0;
-          dry.gain.value = 1.0;
-        }
-
-        master.gain.value = s.volume;
-
         src.connect(eqL);
-
-        delay.connect(feedback);
-        feedback.connect(delay);
-
-        offlineEqTail.connect(dry);
-        dry.connect(master);
-
-        offlineEqTail.connect(distNode);
-        distNode.connect(distGain);
-        distGain.connect(master);
-
-        offlineEqTail.connect(delay);
-        delay.connect(echoGain);
-        echoGain.connect(master);
-
-        offlineEqTail.connect(conv);
-        conv.connect(revGain);
-        revGain.connect(master);
-
-        master.connect(offline.destination);
       }
+
+      // the effects mix after the EQ, with HQ on or off, as live playback has it (with HQ on, exports used to
+      // come out without their reverb, echo and distortion)
+      const dry = offline.createGain();
+      const distNode = offline.createWaveShaper();
+      distNode.oversample = 'none';
+      const distGain = offline.createGain();
+      const delay = offline.createDelay(1.0);
+      delay.delayTime.value = 0.3;
+      const feedback = offline.createGain();
+      feedback.gain.value = 0.35;
+      const echoGain = offline.createGain();
+      const conv = offline.createConvolver();
+      conv.buffer = this._createReverbImpulse(offline);
+      const revGain = offline.createGain();
+      const master = offline.createGain();
+
+      revGain.gain.value = s.reverb / 100;
+      echoGain.gain.value = s.echo / 100;
+
+      if (s.distortion > 0) {
+        distNode.curve = this._makeDistortionCurve(s.distortion);
+        distGain.gain.value = (s.distortion / 100) * 0.75;
+        dry.gain.value = 1.0 - (s.distortion / 100) * 0.4;
+      } else {
+        distNode.curve = this._makeDistortionCurve(0);
+        distGain.gain.value = 0.0;
+        dry.gain.value = 1.0;
+      }
+
+      master.gain.value = s.volume;
+
+      delay.connect(feedback);
+      feedback.connect(delay);
+
+      offlineEqTail.connect(dry);
+      dry.connect(master);
+
+      offlineEqTail.connect(distNode);
+      distNode.connect(distGain);
+      distGain.connect(master);
+
+      offlineEqTail.connect(delay);
+      delay.connect(echoGain);
+      echoGain.connect(master);
+
+      offlineEqTail.connect(conv);
+      conv.connect(revGain);
+      revGain.connect(master);
+
+      master.connect(offline.destination);
 
       src.start(0);
       return offline.startRendering();

@@ -93,6 +93,9 @@ function connectCandidate(index) {
       try {
         const message = JSON.parse(payload);
         if (message.evt === 'READY') {
+          // presence was cleared while this socket was still connecting: it isn't ours any more, and marking
+          // it ready would make every later update skip reconnecting
+          if (socket !== current) { current.destroy(); return; }
           failed = true;
           connecting = false;
           ready = true;
@@ -104,7 +107,9 @@ function connectCandidate(index) {
     }
   });
   current.once('error', tryNext);
-  current.once('timeout', () => current.destroy());
+  // a socket that accepts but never answers moves on to the next one (destroy alone only fires 'close', which
+  // started over at the first socket, so a Discord on discord-ipc-1 behind a stuck ipc-0 was never reached)
+  current.once('timeout', () => { tryNext(); current.destroy(); });
   current.once('close', () => {
     if (socket !== current) return;
     socket = null;

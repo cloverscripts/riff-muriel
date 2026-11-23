@@ -3,7 +3,8 @@
 // draws them, server.js marks explicit songs with the same check, test/library-pages.test.js runs this in Node.
 (function (root) {
   // case, accents, spaces and punctuation aside; "NOBODYKNOWS - Topic" is "NobodyKnows" (as in ytm-artist.js)
-  const fold = (s) => String(s == null ? '' : s).normalize('NFKD').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  // (only Latin accents and emoji/symbol marks go: in Hindi or Arabic the marks are vowels, and "दिल" isn't "दल")
+  const fold = (s) => String(s == null ? '' : s).normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f\u20d0-\u20ff\ufe00-\ufe0f]/g, '').replace(/[^\p{L}\p{N}\p{M}]/gu, '');
   const nameKey = (s) => fold(String(s == null ? '' : s).replace(/\s*-\s*Topic$/i, ''));
   const list = (v) => (Array.isArray(v) ? v : []);
 

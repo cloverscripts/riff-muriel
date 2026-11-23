@@ -1577,6 +1577,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (coverThumb) {
         analyzeCover(coverThumb).then(analysis => {
           if (state.themeMode !== 'auto') return;
+          // a slow analysis of an earlier song's cover mustn't repaint the theme after a skip
+          const nowThumb = (state.currentTrack && (typeof getTrackThumbUrl === 'function' ? getTrackThumbUrl(state.currentTrack) : state.currentTrack.thumbnail)) || '';
+          if (nowThumb !== coverThumb) return;
 
           const derivedMode = analysis.luminance > 0.58 ? 'light' : 'dark';
           const derivedIntensity = Math.min(85, Math.max(20, Math.round(analysis.saturation * 100 * 0.9)));
@@ -3574,7 +3577,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!audioEngine) return 1;
     if (audioEngine.isMuted) return 0;
     if (isPhoneApp) return 1;
-    const v = (Number(audioEngine.volume) || 0) * ((audioEngine.audioSettings && Number(audioEngine.audioSettings.volume)) || 1);
+    // Gain at 0 is a real setting (silent), not a missing one
+    const gain = Number(audioEngine.audioSettings && audioEngine.audioSettings.volume);
+    const v = (Number(audioEngine.volume) || 0) * (Number.isFinite(gain) ? gain : 1);
     return Math.max(0, Math.min(1, v));
   }
   function disposeTailEl(t) {
@@ -3655,7 +3660,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       crossfadeTriggered = true;
       if (audioEngine) audioEngine.fadeOut(Math.max(0.3, (p.end - a.currentTime) / (a.playbackRate || 1)));
     };
-    if (!p.ready || p.token !== state.loadToken || a.paused || state.isRepeat || queueFinished()) { fallback(); return; }
+    // My Wave on its last song: the next one is still being fetched, so moving on would start nothing and the
+    // tail would play this same song again over it
+    const waveAtEnd = state.myWaveActive && state.queueIndex >= state.queue.length - 1;
+    if (!p.ready || p.token !== state.loadToken || a.paused || state.isRepeat || queueFinished() || waveAtEnd) { fallback(); return; }
     const t = p.el;
     const level = tailLevel();
     try { t.currentTime = Math.min(p.end, a.currentTime + 0.02); } catch (e) {}
@@ -3759,6 +3767,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetLevelWatcher();
     vizPrev = null;
     if (state.currentTrack && state.currentTrack.id !== track.id && !navigatingBack) pushPlayHistory(state.currentTrack);
+    // a new list that isn't My Wave's ends My Wave: it isn't topped up with wave songs, and its skips don't count
+    if (queueList && queueList !== state.queue && context !== 'wave') state.myWaveActive = false;
 
     if (!state._isNaturalEnding && state.myWaveActive && state.currentTrack && !isSameTrack(state.currentTrack, track)) {
       const curId = (typeof getTrackCanonicalId === 'function' ? getTrackCanonicalId(state.currentTrack) : '') || state.currentTrack.id;
@@ -4455,11 +4465,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const lyricsTranslationCache = new Map();
 
+  // translations go line by line, so they belong to these exact lines: edited lyrics or another source get new ones
+  function translationKey() {
+    const t = state.currentTrack;
+    const lines = (state.syncedLyrics || []).map(l => l.text).join('\n');
+    return `${(t && t.title) || ''}|${(t && t.artist) || ''}|${state.trLang || 'en'}`.toLowerCase() + '\n' + lines;
+  }
+
   async function fetchAndApplyTranslation() {
     if (!state.currentTrack || !state.syncedLyrics || state.syncedLyrics.length === 0) return;
-    const track = state.currentTrack;
     const lang = state.trLang || 'en';
-    const cacheKey = `${track.title || ''}|${track.artist || ''}|${lang}`.toLowerCase();
+    const cacheKey = translationKey();
 
     if (lyricsTranslationCache.has(cacheKey)) {
       state.currentTranslations = lyricsTranslationCache.get(cacheKey);
@@ -4479,8 +4495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (data && data.success && Array.isArray(data.translations)) {
         lyricsTranslationCache.set(cacheKey, data.translations);
         capMap(lyricsTranslationCache, 30);
-        const curKey = `${(state.currentTrack && state.currentTrack.title) || ''}|${(state.currentTrack && state.currentTrack.artist) || ''}|${state.trLang || 'en'}`.toLowerCase();
-        if (curKey === cacheKey && state.trActive) {
+        if (translationKey() === cacheKey && state.trActive) {
           state.currentTranslations = data.translations;
           renderLyricsView();
           if (el.nativeAudio) updateSyncedLyricsHighlight(el.nativeAudio.currentTime || 0);
@@ -5123,6 +5138,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           };
           preImg.onerror = () => {
+            // a slow failure for an earlier song mustn't replace the cover that is showing now
+            if (coverEl.dataset.currentThumb !== thumb) return;
             coverEl.src = thumb;
             coverEl.style.display = 'block';
             coverEl.style.opacity = '1';
@@ -6466,7 +6483,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resume = () => { a.removeEventListener('loadedmetadata', resume); if (token === state.loadToken && pos > 1 && (!a.duration || pos < a.duration - 2)) a.currentTime = pos; };
         a.addEventListener('loadedmetadata', resume);
         const signal = state.currentAbortController ? state.currentAbortController.signal : undefined;
-        attachStream(track, track.url, track.id, token, signal, true).then((ok) => { if (ok) applyAudioSettings(); else a.removeEventListener('loadedmetadata', resume); }, () => a.removeEventListener('loadedmetadata', resume));
+        attachStream(track, track.url, track.id, token, signal, true).then((ok) => { if (ok) applyAudioSettings(); else a.removeEventListener('loadedmetadata', resume); }, (err) => {
+          a.removeEventListener('loadedmetadata', resume);
+          // the fresh look-up failed too: stop the spinner and move on, as retryFresh does
+          if ((err && err.name === 'AbortError') || token !== state.loadToken) return;
+          logPlaybackIssue('Track playback notice (stall retry)', err);
+          updatePlayPauseButton(false, false);
+          if (!skipUnplayable(token, track)) showToast((err && err.message) || Tm('Could not load audio stream'), 'error');
+        });
       }, 12000);
     }
 
@@ -6946,7 +6970,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isExactOrPrefix = normA === normQ || normA.startsWith(normQ) || normQ.startsWith(normA);
       const isTopTrackArtist = Array.isArray(searchTracks) && searchTracks.slice(0, 5).some(t => {
         const normT = normalizeImportText(t.artist);
-        return normT === normA || normT.includes(normA) || normA.includes(normT);
+        // a song without an artist matches nothing ("" is inside every name)
+        return !!normT && (normT === normA || normT.includes(normA) || normA.includes(normT));
       });
 
       if (!isExactOrPrefix && !isTopTrackArtist) {
@@ -6994,7 +7019,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!album || !t) return null;
     const albumId = album.id || '';
     const trackNo = t.no != null ? t.no : 1;
-    const cacheKey = `${albumId}:${trackNo}`;
+    // per disc: track 1 of disc 2 isn't track 1 of disc 1
+    const cacheKey = `${albumId}:${t.disc || 1}:${trackNo}`;
     if (albumResolved.has(cacheKey)) {
       return albumResolved.get(cacheKey);
     }
@@ -7939,11 +7965,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           btnRemLocal.addEventListener('click', async (e) => {
             e.stopPropagation();
             try {
-              await fetch(`http://127.0.0.1:${state.serverPort}/api/library-remove`, {
+              const removed = await fetch(`http://127.0.0.1:${state.serverPort}/api/library-remove`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: track.id })
               });
+              // the server refused: keep the row, it would come back on the next refresh anyway
+              if (!removed.ok) throw new Error(`library-remove answered ${removed.status}`);
               if (Array.isArray(state.localTracks)) {
                 state.localTracks = state.localTracks.filter(t => t.id !== track.id);
               }
@@ -7966,6 +7994,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               showToast(Tm('Removed from library'));
             } catch (err) {
               console.warn('Remove local track error:', err);
+              showToast(Tm("Couldn't remove from library"), 'error');
             }
           });
         }
@@ -8058,10 +8087,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       { label: 'Play', run: () => row.click() },
       { label: 'Play next', run: () => {
         if (!state.queue.length || state.queueIndex < 0) { playTrack(track); return; }
-        state.queue = state.queue.filter((t, i) => i <= state.queueIndex || !isSameTrack(t, track));
+        // in place: the queue stays the same array, so shuffle's "already heard" list and a My Wave top-up
+        // still loading for it both keep going
+        for (let i = state.queue.length - 1; i > state.queueIndex; i--) {
+          if (isSameTrack(state.queue[i], track)) state.queue.splice(i, 1);
+        }
         state.queue.splice(state.queueIndex + 1, 0, track);
-        // the filter made a new queue array; keep shuffle's "already heard" list instead of starting over
-        if (shuffleBag.queue) shuffleBag.queue = state.queue;
         shuffleBag.next.push(track);
         updateQueueBadge();
         showToast(Tm('Playing next'), 'success');
@@ -9258,6 +9289,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let draggedHeight = 0;
     let draggedStartTop = 0;
     let isTouch = false;
+    // which drag a drop's delayed cleanup belongs to: a new drag can start inside its 160 ms
+    let dragGen = 0;
 
     const scrollParent = container.closest('.main-content, .rail-drawer') || container;
 
@@ -9271,6 +9304,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const startDrag = () => {
       if (!draggedItem || isDragging) return;
+      dragGen++;
       isDragging = true;
       suppressClick = true;
       container._isDraggingReorder = true;
@@ -9443,11 +9477,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fromAbs = startIndex >= 0 ? absolute(startIndex) : -1;
         const toAbs = targetIndex >= 0 ? absolute(targetIndex) : -1;
         const sliceStart = container._lastStartIndex > 0 ? container._lastStartIndex : 0;
+        // this drop's own values: a drag started within the 160 ms below replaces the shared ones
+        const dropItems = items;
+        const dropTarget = targetIndex;
+        const dropStart = startIndex;
+        const gen = dragGen;
 
         setTimeout(() => {
-          if (targetIndex !== startIndex && targetIndex >= 0 && targetIndex < items.length) {
-            const targetItem = items[targetIndex];
-            if (targetIndex > startIndex) {
+          if (dropTarget !== dropStart && dropTarget >= 0 && dropTarget < dropItems.length) {
+            const targetItem = dropItems[dropTarget];
+            if (dropTarget > dropStart) {
               targetItem.after(item);
             } else {
               targetItem.before(item);
@@ -9459,7 +9498,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           item.style.transition = '';
           item.style.willChange = '';
 
-          items.forEach(el => {
+          dropItems.forEach(el => {
             el.style.transform = '';
             el.style.transition = '';
           });
@@ -9477,7 +9516,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             setOrder(fromAbs, toAbs);
           }
 
-          container._isDraggingReorder = false;
+          // the touchmove guard below reads this: left on, the list couldn't scroll until the next drag began.
+          // Not when another drag has started since: that one is still moving
+          if (gen === dragGen) {
+            container._isDraggingReorder = false;
+            isDragging = false;
+          }
           setTimeout(() => { suppressClick = false; }, 80);
         }, 160);
       } else {
@@ -11863,14 +11907,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   let meshCfg = { ...DEFAULT_MESH_CFG };
+  // 0–100, or the default when missing: Number(undefined) is NaN, which `?? default` never caught
+  const meshCoord = (v, fallback) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Math.max(0, Math.min(100, Number(v))) : fallback);
   try {
     const raw = localStorage.getItem('muriel_mesh_cfg');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.p1 && parsed.p2) {
         meshCfg = {
-          p1: { x: Math.max(0, Math.min(100, Number(parsed.p1.x) ?? 20)), y: Math.max(0, Math.min(100, Number(parsed.p1.y) ?? 0)) },
-          p2: { x: Math.max(0, Math.min(100, Number(parsed.p2.x) ?? 85)), y: Math.max(0, Math.min(100, Number(parsed.p2.y) ?? 5)) },
+          p1: { x: meshCoord(parsed.p1.x, 20), y: meshCoord(parsed.p1.y, 0) },
+          p2: { x: meshCoord(parsed.p2.x, 85), y: meshCoord(parsed.p2.y, 5) },
           speed: Math.max(0, Math.min(100, Number(parsed.speed) || 0)),
           blur: Math.max(0, Math.min(60, Number(parsed.blur) || 0))
         };
@@ -13198,7 +13244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     cssEditorInstance = monaco.editor.create(document.getElementById('css-editor-host'), {
       value: localStorage.getItem('muriel_custom_css') || '/* Your CSS goes here. Example:\n.btn-pill-primary { border-radius: 8px; }\n*/\n',
       language: 'css',
-      theme: 'riff',
+      theme: 'muriel',
       automaticLayout: true,
       minimap: { enabled: true },
       fontSize: 14,
@@ -13940,6 +13986,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       .trim();
   }
 
+  // search results give seconds; only a value longer than a day is taken as milliseconds (the old cut-off,
+  // 1000, turned every song or episode over 16 minutes into a few seconds)
+  const MS_DURATION_ABOVE = 86400;
   function toSeconds(dur) {
     if (typeof dur === 'string') {
       const trimmed = dur.trim();
@@ -13948,12 +13997,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       const num = Number(trimmed);
       if (!Number.isNaN(num) && num > 0) {
-        return num > 1000 ? Math.round(num / 1000) : Math.round(num);
+        return num > MS_DURATION_ABOVE ? Math.round(num / 1000) : Math.round(num);
       }
       return 0;
     }
     if (typeof dur === 'number' && dur > 0) {
-      return dur > 1000 ? Math.round(dur / 1000) : Math.round(dur);
+      return dur > MS_DURATION_ABOVE ? Math.round(dur / 1000) : Math.round(dur);
     }
     return 0;
   }
@@ -14155,6 +14204,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const networkIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>`;
     const restrictedIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
     const unknownIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    // the song search went quiet partway through matching (matchSpotifyTracks): not a problem with the playlist
+    if (msg.includes('search_unresponsive')) {
+      return { code: 'search_unresponsive', title: 'Search is not responding, so the import stopped', hint: 'Try again later; nothing gets added twice', icon: networkIcon };
+    }
 
     if (body && typeof body === 'object') {
       if (body.code === 'spotify_incomplete') {
@@ -14912,7 +14965,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentAppleImportMode = 'link';
   let parsedAppleExport = { likes: [], playlists: [] };
 
-  function parseAppleDuration(val) {
+  // `ms`: the field says milliseconds (durationInMillis, duration_ms, "Milliseconds"). Otherwise only a big number
+  // is taken as milliseconds: the old cut-off, 1000, made a 20-minute track given in seconds last 1 second
+  function parseAppleDuration(val, ms = false) {
     if (val == null) return undefined;
     const s = String(val).trim();
     if (!s) return undefined;
@@ -14923,7 +14978,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     }
     const n = Number(s);
-    if (!isNaN(n)) return n > 1000 ? Math.round(n / 1000) : Math.round(n);
+    if (!isNaN(n)) return ms || n > 10000 ? Math.round(n / 1000) : Math.round(n);
     return undefined;
   }
 
@@ -14973,7 +15028,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const title = titleCol ? r[titleCol] : '';
       const artist = artistCol ? r[artistCol] : '';
       if (!title || !artist) continue;
-      const dur = durCol ? parseAppleDuration(r[durCol]) : undefined;
+      const dur = durCol ? parseAppleDuration(r[durCol], /milli|\bms\b/i.test(durCol)) : undefined;
       const pl = plCol ? r[plCol].trim() : '';
       const track = { title: title.trim(), artist: artist.trim(), duration: dur };
       if (pl) {
@@ -15022,7 +15077,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const title = String(node.title || node.name || node.trackName || node.song || node['track name'] || node['song name'] || '').trim();
       const artist = String(node.artistName || node.artist || node.artist_name || node['artist name'] || '').trim();
       const durRaw = node.durationInMillis || node.duration || node.duration_ms || node.time || node.trackDuration || node['track duration'];
-      const duration = parseAppleDuration(durRaw);
+      const duration = parseAppleDuration(durRaw, durRaw != null && (durRaw === node.durationInMillis || durRaw === node.duration_ms));
 
       if (title && artist && (node.type === 'song' || node.type === 'songs' || duration || pl || node.contentDescriptor)) {
         const track = { title, artist, duration };
@@ -15906,7 +15961,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetch(`http://127.0.0.1:${state.serverPort}/api/check-cache?id=${encodeURIComponent(track.id)}`)
           .then(r => r.json())
           .then(res => {
-            if (res.cached) {
+            // only for the song the dialog still shows: a late answer for an earlier one would offer to delete the wrong file
+            if (res.cached && trackToDownload === track) {
               btnDeleteOfflineTrack.classList.remove('hidden');
             }
           })
@@ -15968,9 +16024,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   let downloadAbort = null;
+  // what the running download is for: the batch object or the track. The dialog is shared, so a playlist download
+  // left running (Escape only hides the dialog) must not be cancelled from a single song's dialog, or the reverse
+  let downloadAbortFor = null;
 
   function cancelCurrentDownload() {
-    if (downloadAbort) {
+    if (downloadAbort && downloadAbortFor === (downloadBatch || trackToDownload)) {
       try { downloadAbort.abort(); } catch (_) {}
       downloadAbort = null;
       const curSpinner = el.downloadSpinner || document.getElementById('download-spinner');
@@ -16129,13 +16188,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Cancel/X used to only hide the dialog while every song kept downloading
         const batchAbort = new AbortController();
         downloadAbort = batchAbort;
+        downloadAbortFor = batch;
+        // the dialog may show another download by the time this one reports back
+        const shown = () => downloadBatch === batch;
         const total = batch.tracks.length;
         // songs already in the Downloads folder aren't downloaded again (#29)
         const present = await downloadedInFolder(batch.tracks).catch(() => null);
         const tracks = present ? batch.tracks.filter((_, i) => !present[i]) : batch.tracks;
         const skipped = total - tracks.length;
         const setProgress = (p) => {
-          if (el.downloadBtnText) el.downloadBtnText.textContent = Tf('Downloading {0}/{1}', Math.min(tracks.length, p.done + p.failed + 1), tracks.length) + (p.failed ? ` · ${Tf('{0} failed', p.failed)}` : '');
+          if (el.downloadBtnText && shown()) el.downloadBtnText.textContent = Tf('Downloading {0}/{1}', Math.min(tracks.length, p.done + p.failed + 1), tracks.length) + (p.failed ? ` · ${Tf('{0} failed', p.failed)}` : '');
           if (typeof batch.onProgress === 'function') batch.onProgress(p.done + p.failed, tracks.length);
         };
         setProgress({ done: 0, failed: 0 });
@@ -16160,7 +16222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         for (const f of result.failed) console.error('Download failed:', f.item.title || f.item.url || '', f.error && f.error.message);
         const done = result.done.length;
         const failedTracks = result.failed.map((f) => f.item);
-        el.btnConfirmDownload.disabled = false;
+        if (shown()) el.btnConfirmDownload.disabled = false;
         if (downloadAbort === batchAbort) downloadAbort = null;
         if (typeof batch.onDone === 'function') batch.onDone(done + skipped, total);
         // on phones the server answers with the app's internal path (/data/Downloads); name the real folder
@@ -16175,6 +16237,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const summary = [Tf('{0} downloaded', done)];
         if (skipped) summary.push(Tf('{0} already downloaded', skipped));
         if (failedTracks.length) summary.push(Tf('{0} failed', failedTracks.length));
+        if (!shown()) {
+          showToast(summary.join(' · '), failedTracks.length ? 'error' : 'success');
+          return;
+        }
         if (failedTracks.length) {
           // the dialog stays open with the summary; its button now retries just the failed songs
           downloadBatch = { ...batch, tracks: failedTracks, retry: true };
@@ -16222,18 +16288,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       showToast(Tm('Downloading: {0}', `${t.title || T('Track')} (.${selectedFormat})`), 'info');
-      downloadAbort = new AbortController();
+      // its own controller: Cancel clears the shared one, and a download started after this one replaces it
+      const singleAbort = new AbortController();
+      downloadAbort = singleAbort;
+      downloadAbortFor = t;
 
       try {
         // Phones have no audio rendering pipeline or ffmpeg: the server saves the song file as it is
         // (the decode-and-encode path below always ended in "Download failed" there)
         if (isPhoneApp) {
           if (t.platform === 'local') throw new Error('This song is already on your phone');
-          const r = await fetch(`http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(t.url || '')}&id=${encodeURIComponent(t.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}`, { signal: downloadAbort.signal });
+          const r = await fetch(`http://127.0.0.1:${state.serverPort}/api/download?url=${encodeURIComponent(t.url || '')}&id=${encodeURIComponent(t.id || '')}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&format=${selectedFormat}&quality=${selectedQuality}`, { signal: singleAbort.signal });
           const d = await r.json();
           if (!d.success) throw new Error(d.error || 'Download failed');
           showToast(Tm('Download complete: saved as {0}', d.filename), 'info');
-          if (el.downloadModal) closeModal(el.downloadModal);
+          if (el.downloadModal && downloadAbort === singleAbort) closeModal(el.downloadModal);
           return;
         }
         let audioSourceUrl = null;
@@ -16248,7 +16317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!audioSourceUrl && t.id) {
           try {
-            const checkRes = await fetch(`http://127.0.0.1:${state.serverPort}/api/check-cache?id=${encodeURIComponent(t.id)}`, { signal: downloadAbort.signal });
+            const checkRes = await fetch(`http://127.0.0.1:${state.serverPort}/api/check-cache?id=${encodeURIComponent(t.id)}`, { signal: singleAbort.signal });
             const checkData = await checkRes.json();
             if (checkData && checkData.cached) {
               audioSourceUrl = `http://127.0.0.1:${state.serverPort}/api/local-track?id=${encodeURIComponent(t.id)}`;
@@ -16258,7 +16327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!audioSourceUrl) {
           const streamInfoUrl = `http://127.0.0.1:${state.serverPort}/api/stream-info?url=${encodeURIComponent(t.url || '')}&id=${encodeURIComponent(t.id || '')}&platform=${t.platform || 'youtube'}&title=${encodeURIComponent(t.title || '')}&artist=${encodeURIComponent(t.artist || '')}&duration=${encodeURIComponent(t.duration || 0)}`;
-          const streamRes = await fetch(streamInfoUrl, { signal: downloadAbort.signal });
+          const streamRes = await fetch(streamInfoUrl, { signal: singleAbort.signal });
           const streamData = await streamRes.json();
           if (!streamData || !streamData.success || (!streamData.streamUrl && !streamData.proxyUrl)) {
             throw new Error((streamData && streamData.error) || 'Failed to locate track audio stream');
@@ -16272,18 +16341,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           fetchUrl = `http://127.0.0.1:${state.serverPort}/api/audio-proxy?url=${encodeURIComponent(audioSourceUrl)}`;
         }
 
-        const resFile = await fetch(fetchUrl, { signal: downloadAbort.signal });
+        const resFile = await fetch(fetchUrl, { signal: singleAbort.signal });
         if (!resFile.ok) throw new Error(`Failed to load audio (${resFile.status})`);
         const arrayBuffer = await resFile.arrayBuffer();
 
-        if (downloadAbort?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (singleAbort.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
         const decodeCtx = audioEngine.ctx || new (window.AudioContext || window.webkitAudioContext)();
         const decodedBuffer = await new Promise((resolve, reject) => {
           decodeCtx.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
         });
 
-        if (downloadAbort?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (singleAbort.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
         let bufferToProcess = decodedBuffer;
         if (startSec > 0 || (endSec !== null && endSec < decodedBuffer.duration)) {
@@ -16302,18 +16371,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           finalBuffer = await audioEngine.renderOffline(bufferToProcess, currentSettings);
         }
 
-        if (downloadAbort?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (singleAbort.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
         const wavBlob = audioBufferToWav(finalBuffer);
 
-        if (downloadAbort?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (singleAbort.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
         const encodeUrl = `http://127.0.0.1:${state.serverPort}/api/encode?title=${encodeURIComponent(t.title || 'untitled')}&artist=${encodeURIComponent(t.artist || 'unknown artist')}&format=${selectedFormat}&quality=${selectedQuality}`;
         const resEncode = await fetch(encodeUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'audio/wav' },
           body: wavBlob,
-          signal: downloadAbort.signal
+          signal: singleAbort.signal
         });
         const textEncode = await resEncode.text();
         let dataEncode;
@@ -16325,20 +16394,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!dataEncode.success) throw new Error(dataEncode.error || 'Failed to encode');
 
         showToast(Tm('Download complete: saved to {0}', `${dataEncode.directory ? dataEncode.directory + '/' : ''}${dataEncode.filename}`), 'info');
-        if (el.downloadModal) closeModal(el.downloadModal);
+        if (el.downloadModal && downloadAbort === singleAbort) closeModal(el.downloadModal);
       } catch (err) {
         if (err.name === 'AbortError') return;
         console.error('Download error:', err);
         showToast(Tm('Download failed: {0}', err.message), 'error');
       } finally {
-        downloadAbort = null;
-        const curSpinner = el.downloadSpinner || document.getElementById('download-spinner');
-        if (curSpinner) curSpinner.innerHTML = '';
-        if (el.btnConfirmDownload) {
-          el.btnConfirmDownload.style.display = '';
-          el.btnConfirmDownload.disabled = false;
+        // cancelled (Cancel already reset the dialog) or replaced by a newer download: leave its state alone
+        if (downloadAbort === singleAbort) {
+          downloadAbort = null;
+          const curSpinner = el.downloadSpinner || document.getElementById('download-spinner');
+          if (curSpinner) curSpinner.innerHTML = '';
+          if (el.btnConfirmDownload) {
+            el.btnConfirmDownload.style.display = '';
+            el.btnConfirmDownload.disabled = false;
+          }
+          updateDownloadBtnLabel();
         }
-        updateDownloadBtnLabel();
       }
     });
   }
@@ -16833,6 +16905,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function extendMyWaveQueueOnce() {
     if (isExtendingMyWave) return false;
     isExtendingMyWave = true;
+    const queue = state.queue;
     try {
       const profile = await computeTasteProfile();
       const res = await fetch(`http://127.0.0.1:${state.serverPort}/api/vibe`, {
@@ -16849,6 +16922,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         })
       });
       const data = await res.json();
+      // another list started while this was loading: its queue doesn't get wave songs
+      if (!state.myWaveActive || state.queue !== queue) return false;
       if (data.success && Array.isArray(data.tracks) && data.tracks.length > 0) {
         const existingIds = new Set(state.queue.map(t => getTrackCanonicalId(t)));
         const existingKeys = new Set(state.queue.map(t => getTrackNormalizedKey(t.artist, t.title)));
@@ -16886,7 +16961,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (myWaveCurrentTracks && myWaveCurrentTracks.length > 0) {
         state.myWaveActive = true;
         const startIdx = (currentWaveFocusedIndex >= 0 && currentWaveFocusedIndex < myWaveCurrentTracks.length) ? currentWaveFocusedIndex : 0;
-        playTrack(myWaveCurrentTracks[startIdx], [...myWaveCurrentTracks], startIdx);
+        playTrack(myWaveCurrentTracks[startIdx], [...myWaveCurrentTracks], startIdx, 'wave');
         showToast(Tm('Playing My Wave'));
       }
     });
@@ -17054,7 +17129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mode === 'wave') {
           state.myWaveActive = true;
           const waveQueue = [...myWaveCurrentTracks];
-          playTrack(track, waveQueue, curIdx);
+          playTrack(track, waveQueue, curIdx, 'wave');
         } else {
           state.myWaveActive = false;
           const recentTracks = jumpBackCurrentTracks.length > 0 ? jumpBackCurrentTracks : getJumpBackTracks();
@@ -17740,8 +17815,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const followedMetaTried = new Set();
   async function fetchFollowedMeta(list) {
     const todo = list.filter((a) => !a.avatar && !followedMetaTried.has(a.id || Lib.nameKey(a.name))).slice(0, 8);
-    let changed = false;
-    let followed = getFollowedArtists();
+    // the details are applied at the end to the list as it is then: a follow or unfollow (here, or from a linked
+    // device) during the lookups would otherwise be overwritten with the list read before them
+    const updates = [];
     for (const a of todo) {
       followedMetaTried.add(a.id || Lib.nameKey(a.name));
       try {
@@ -17751,9 +17827,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const info = data && data.success && data.artist;
         if (!info) continue;
         // a page by name only can't say which namesake it is: it lends the picture, never a channel
-        const r = Lib.refreshFollowed(followed, { name: a.name, id: a.id ? (info.id || a.id) : '', ids: info.ids || [], avatar: info.avatar || '', fans: info.fans || 0 });
-        if (r.changed) { followed = r.list; changed = true; }
+        updates.push({ name: a.name, id: a.id ? (info.id || a.id) : '', ids: info.ids || [], avatar: info.avatar || '', fans: info.fans || 0 });
       } catch (e) {}
+    }
+    let followed = getFollowedArtists();
+    let changed = false;
+    for (const u of updates) {
+      const r = Lib.refreshFollowed(followed, u);
+      if (r.changed) { followed = r.list; changed = true; }
     }
     if (changed) setFollowedArtists(followed);
   }
@@ -18275,6 +18356,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         await window.electronAPI.clearCache();
       } catch (err) {
         console.warn('clearCache failed', err);
+        // nothing was cleared: say so instead of finishing the "cleared" animation
+        cacheModalCard.classList.remove('cleaning');
+        cacheTargetSpeed = 0;
+        cacheBusy = false;
+        closeCacheModal();
+        showToast(Tm("Couldn't clear the cache"), 'error');
+        return;
       }
       await cacheWait(Math.max(0, 1500 - (Date.now() - startedAt)));
 
@@ -18445,7 +18533,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnDeleteOfflineTrack.addEventListener('click', async () => {
       if (!trackToDownload || !trackToDownload.id) return;
       try {
-        await fetch(`http://127.0.0.1:${state.serverPort}/api/offline-delete?id=${encodeURIComponent(trackToDownload.id)}`, { method: 'POST' });
+        const r = await fetch(`http://127.0.0.1:${state.serverPort}/api/offline-delete?id=${encodeURIComponent(trackToDownload.id)}`, { method: 'POST' });
+        if (!r.ok) throw new Error(`offline-delete answered ${r.status}`);
         showToast(Tm('Track removed from offline cache'));
         updateOfflineStorageUI();
         if (el.downloadModal) closeModal(el.downloadModal);
@@ -18473,7 +18562,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnConfirmClearOffline && clearOfflineModal) {
     btnConfirmClearOffline.addEventListener('click', async () => {
       try {
-        await fetch(`http://127.0.0.1:${state.serverPort}/api/clear-offline-library`, { method: 'POST' });
+        const r = await fetch(`http://127.0.0.1:${state.serverPort}/api/clear-offline-library`, { method: 'POST' });
+        if (!r.ok) throw new Error(`clear-offline-library answered ${r.status}`);
         showToast(Tm('Offline library cleared'));
         updateOfflineStorageUI();
       } catch (e) {

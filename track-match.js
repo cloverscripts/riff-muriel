@@ -7,7 +7,10 @@ const MATCH_VERSION_WORDS = ['remix', 'sped up', 'speed up', 'slowed', 'nightcor
   'cover', 'flip', 'mashup', 'instrumental', 'karaoke', 'loop', 'bootleg', 'live', 'acoustic', 'tribute', 'piano version',
   'reaction', 'tutorial', 'lesson', 'chords', 'drum cover', 'guitar cover', 'lyrics translation', '1 hour', '10 hours'];
 // bracketed bits of a YouTube title that say nothing about the recording
-const NOISE = /\b(official|video|music|audio|lyrics?|lyric video|visuali[sz]er|hd|hq|4k|mv|m\/v|remaster(ed)?(\s+\d{4})?|\d{4}\s+remaster(ed)?|explicit|clean|color coded|full song|from [^)]*)\b/g;
+const NOISE_WORDS = 'official|video|music|audio|lyrics?|lyric video|visuali[sz]er|hd|hq|4k|mv|m\\/v|remaster(ed)?(\\s+\\d{4})?|\\d{4}\\s+remaster(ed)?|explicit|clean|color coded|full song';
+const NOISE = new RegExp(`\\b(${NOISE_WORDS})\\b`, 'g');
+// "(from the film …)" only inside brackets: in a title, "from" is a word ("Letter from America", "From Me to You")
+const BRACKET_NOISE = new RegExp(`\\b(${NOISE_WORDS}|from .*)\\b`, 'g');
 
 // Cyrillic spelled in Latin letters, so "Кино" on Spotify meets "Kino" on YouTube
 const CYR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya', і: 'i', ї: 'yi', є: 'ye', ґ: 'g' };
@@ -38,14 +41,17 @@ function stripFeat(t) {
 // the song title with the artist prefix, featured artists and "(Official Video)" style noise removed
 function cleanTitle(title, artists = []) {
   let t = stripFeat(title);
-  t = t.replace(/[([]([^)\]]*)[)\]]/g, (m, inner) => (matchNorm(inner).replace(NOISE, '').trim() ? ` ${inner} ` : ' '));
-  let n = matchNorm(t).replace(NOISE, ' ').replace(/\s+/g, ' ').trim();
+  t = t.replace(/[([]([^)\]]*)[)\]]/g, (m, inner) => (matchNorm(inner).replace(BRACKET_NOISE, '').trim() ? ` ${inner} ` : ' '));
+  // a title that is nothing but such words (Madonna's "Music") stays as it is
+  const denoise = (x) => matchNorm(x).replace(NOISE, ' ').replace(/\s+/g, ' ').trim() || matchNorm(x);
+  let n = denoise(t);
   // "Artist - Title" uploads
-  const dash = String(stripFeat(title)).split(/\s[-–—|]\s/);
+  // split the title with its brackets already cleaned, so "(from Frozen)" and "(Official Video)" are gone here too
+  const dash = t.split(/\s[-–—|]\s/);
   if (dash.length > 1) {
     const head = matchNorm(dash[0]);
     if (artists.some((a) => a && (head === a || head.includes(a) || a.includes(head)))) {
-      n = matchNorm(dash.slice(1).join(' ')).replace(NOISE, ' ').replace(/\s+/g, ' ').trim();
+      n = denoise(dash.slice(1).join(' '));
     }
   }
   return n;

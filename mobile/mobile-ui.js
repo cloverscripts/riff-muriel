@@ -105,7 +105,24 @@
     } catch (e) { artOk = false; }
     localStorage.removeItem('muriel_bg_vpath');
     if (bgChanged) window.MurielCore.refreshBackground();
-    if (artOk && api.pruneMedia) api.pruneMedia(keep);
+    // these settings are per profile but the files are shared: keep every profile's picks, not only this one's
+    // (switching to a profile without a background used to delete the other profile's)
+    let othersOk = true;
+    const P = window.MurielProfiles;
+    if (P) {
+      for (const p of P.list()) {
+        for (const key of ['muriel_bg_url', 'muriel_banner_media', 'muriel_app_icon']) {
+          const name = nameOf(P.peek(p.id, key));
+          if (name) keep.add(name);
+        }
+        try {
+          for (const v of Object.values(JSON.parse(P.peek(p.id, 'muriel_track_art') || '{}'))) {
+            for (const f of ['cover', 'banner']) { const name = v && nameOf(v[f]); if (name) keep.add(name); }
+          }
+        } catch (e) { othersOk = false; }
+      }
+    }
+    if (artOk && othersOk && api.pruneMedia) api.pruneMedia(keep);
   };
   if (window.MurielCore) fixPickedMedia(); else window.addEventListener('muriel:ready', fixPickedMedia, { once: true });
 
