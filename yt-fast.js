@@ -88,4 +88,7 @@ async function lookup(id) {
   return null;
 }
 
-module.exports = { lookup, videoId, pickFormats, VOS_UA };
+// fetched once in the background at startup, so the first song doesn't wait for it
+function prewarm() { visitorId(false).catch(() => {}); }
+
+module.exports = { lookup, videoId, pickFormats, prewarm, VOS_UA };

@@ -6986,6 +6986,8 @@ const server = http.createServer(guardHandler(async (req, res) => {
 }));
 
 function startServer(port = PORT) {
+  // the fast YouTube lookup's session, ready before the first song (not on phones, which use their own route)
+  if (!STREAM_VIA_CACHE && !process.env.NODE_TEST_CONTEXT) setTimeout(() => ytFast.prewarm(), 1500).unref();
   if (server.listening) {
     const address = server.address();
     return Promise.resolve(address && typeof address === 'object' ? address.port : port);

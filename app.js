@@ -13296,7 +13296,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // auto battery saver: perf mode while a laptop runs on battery (the stored setting is left alone)
   let batterySaver = false;
-  function storedPerfMode() { const v = localStorage.getItem('muriel_perf_mode'); return v === '1' || v === 'true'; }
+  // low-end devices (#40) start in performance mode until it's switched off: blur, glows and moving backgrounds
+  // are what makes a cheap phone stutter
+  const lowEndDevice = (() => {
+    try {
+      const mem = Number(navigator.deviceMemory) || 0;
+      const cores = Number(navigator.hardwareConcurrency) || 0;
+      return (mem > 0 && mem <= 3) || (isPhoneApp && cores > 0 && cores <= 4);
+    } catch (e) { return false; }
+  })();
+  function storedPerfMode() {
+    const v = localStorage.getItem('muriel_perf_mode');
+    if (v === null) return lowEndDevice;
+    return v === '1' || v === 'true';
+  }
   function applyPerfMode(on) {
     on = !!on || batterySaver;
     document.body.classList.toggle('perf', on);
@@ -13365,7 +13378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateTvkVisualizerOpacity(parseInt(localStorage.getItem('muriel_tvk_visualizer_opacity') || '85', 10));
 
   const btnPerfMode = document.getElementById('btn-perf-mode');
-  const initialPerfMode = localStorage.getItem('muriel_perf_mode') === '1' || localStorage.getItem('muriel_perf_mode') === 'true';
+  const initialPerfMode = storedPerfMode();
   applyPerfMode(initialPerfMode);
   // the battery saver had no switch: on battery it forced performance mode with no way back
   const btnBatterySaver = document.getElementById('btn-battery-saver');
