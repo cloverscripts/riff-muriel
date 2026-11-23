@@ -6,7 +6,10 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -125,6 +128,14 @@ public class MediaControlsPlugin extends Plugin {
     private boolean islandChannel;
     private final Runnable islandPost = this::postIsland;
 
+    // headphones unplugged or a Bluetooth speaker gone: pause instead of playing out of the phone's speaker (#32)
+    private final BroadcastReceiver noisy = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction()) && playing) send("pause", -1);
+        }
+    };
+    private boolean noisyRegistered;
+
     @Override
     public void load() {
         instance = this;
@@ -150,6 +161,10 @@ public class MediaControlsPlugin extends Plugin {
                 else if (CUSTOM_REPEAT.equals(action)) send("repeat", -1);
             }
         });
+        try {
+            ContextCompat.registerReceiver(ctx, noisy, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), ContextCompat.RECEIVER_EXPORTED);
+            noisyRegistered = true;
+        } catch (Exception ignored) {}
     }
 
     // the repeat button: dim when off, lit for the playlist, lit with a 1 for the song
@@ -659,6 +674,7 @@ public class MediaControlsPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        if (noisyRegistered) { try { getContext().unregisterReceiver(noisy); } catch (Exception ignored) {} noisyRegistered = false; }
         shutdown();
         if (session != null) session.release();
         artLoader.shutdownNow();

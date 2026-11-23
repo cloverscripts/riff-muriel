@@ -5691,16 +5691,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.nativeAudio.addEventListener('playing', () => { if (outputDeviceId) applyOutputDevice(); });
   }
 
+  // headphones and Bluetooth speakers by name: when one of them goes away while Muriel plays on the system
+  // default, the sound would move to the computer's speakers, so it pauses like other players do (#32)
+  const PERSONAL_OUTPUT = /head(phone|set)|bluetooth|airpods|buds|hands-?free|wireless|\bbt\b/i;
+  let outputLabels = null;
+  if (canPickOutput) listOutputDevices().then((list) => { outputLabels = new Map(list.map((d) => [d.deviceId, d.label || ''])); }).catch(() => {});
   if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
     navigator.mediaDevices.addEventListener('devicechange', async () => {
       updateTvkOutput();
       if (!canPickOutput) return;
       const before = knownOutputIds;
-      const now = new Set((await listOutputDevices()).map((d) => d.deviceId).filter((id) => id && id !== 'default' && id !== 'communications'));
+      const list = await listOutputDevices();
+      const now = new Set(list.map((d) => d.deviceId).filter((id) => id && id !== 'default' && id !== 'communications'));
       const lostChosen = !!outputDeviceId && !!before && before.has(outputDeviceId) && !now.has(outputDeviceId);
-      if (state.isPlaying && lostChosen && el.nativeAudio && !el.nativeAudio.paused) {
+      const lostPersonal = !outputDeviceId && !!outputLabels && [...outputLabels].some(([id, label]) => id && id !== 'default' && id !== 'communications' && !now.has(id) && PERSONAL_OUTPUT.test(label));
+      outputLabels = new Map(list.map((d) => [d.deviceId, d.label || '']));
+      if (state.isPlaying && (lostChosen || lostPersonal) && el.nativeAudio && !el.nativeAudio.paused) {
         el.nativeAudio.pause();
-        showToast(Tm('Paused: the output device was disconnected'), 'info');
+        showToast(Tm(lostChosen ? 'Paused: the output device was disconnected' : 'Paused: headphones disconnected'), 'info');
       }
       renderOutputDevices();
       if (outputDeviceId && now.has(outputDeviceId)) applyOutputDevice();

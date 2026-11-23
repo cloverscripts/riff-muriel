@@ -102,6 +102,13 @@ public class MurielAudioSessionPlugin: CAPPlugin, CAPBridgedPlugin {
                 break
             }
         }
+        // headphones unplugged or a Bluetooth speaker gone: the page pauses instead of playing out loud (#32)
+        NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] note in
+            guard let self = self,
+                  let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable else { return }
+            self.notifyListeners("route", data: ["reason": "deviceGone"])
+        }
     }
 
     // once the song plays again iOS keeps the app running by itself; this only bridges the moment until then

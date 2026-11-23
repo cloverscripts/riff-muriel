@@ -32,6 +32,10 @@ module.exports = function audioInterruption() {
       if (c.state.isPlaying) a.play().catch(() => {});
       else c.togglePlay();
     });
+    // headphones or a Bluetooth speaker went away (#32)
+    plugin.addListener('route', ({ reason } = {}) => {
+      if (reason === 'deviceGone' && c.state.isPlaying) c.togglePlay();
+    });
   }
   if (window.MurielCore) hook(); else window.addEventListener('muriel:ready', hook, { once: true });
 };
