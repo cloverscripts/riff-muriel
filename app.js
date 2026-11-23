@@ -3281,7 +3281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.playbarArtwork.onload = () => {
           // a fallback that loaded replaces the song's dead cover for good
           const shown = el.playbarArtwork.getAttribute('src') || '';
-          if (el.playbarArtwork.__artTrack === track && shown !== thumb) rememberTrackArt(getTrackCanonicalId(track), shown);
+          if (el.playbarArtwork.__artTrack === track && shown !== thumb && shown !== barFreeArt(thumb)) rememberTrackArt(getTrackCanonicalId(track), shown);
           if (state.currentTrack && 'mediaSession' in navigator && navigator.mediaSession.metadata) {
             const curThumb = (typeof getTrackThumbUrl === 'function' ? getTrackThumbUrl(state.currentTrack) : '') || state.currentTrack.thumbnail || '';
             const art = getMediaArtwork(curThumb);
@@ -3290,8 +3290,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           }
         };
-        swapArtwork(el.playbarArtwork, thumb);
-        if (typeof m3cSetImage === 'function') m3cSetImage(thumb);
+        // the bar-free YouTube frame where there is one (#31); a missing one falls back through onerror
+        swapArtwork(el.playbarArtwork, barFreeArt(thumb));
+        if (typeof m3cSetImage === 'function') m3cSetImage(barFreeArt(thumb));
         el.playbarArtwork.onerror = () => {
           // a dead cover: try the song's other covers (the right panel follows) before showing the placeholder
           const next = nextPlayerArt(track, el.playbarArtwork);
@@ -3308,7 +3309,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (el.artworkFallback) el.artworkFallback.style.display = 'none';
       if (el.rightPanelCover) {
-        swapArtwork(el.rightPanelCover, thumb);
+        swapArtwork(el.rightPanelCover, barFreeArt(thumb));
         el.rightPanelCover.onerror = () => {
           const next = nextPlayerArt(track, el.rightPanelCover);
           if (next) { updateRightPanelBanner(next); return; }
@@ -5246,7 +5247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (thumb) {
         coverWrap.classList.remove('no-cover');
         cover.style.display = '';
-        cover.src = thumb;
+        cover.src = barFreeArt(thumb);
       } else {
         coverWrap.classList.add('no-cover');
         cover.removeAttribute('src');
@@ -9357,11 +9358,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if ((p === 'youtube' || p === 'ytmusic' || p === 'yt' || (!p && !track.url)) && /^[\w-]{11}$/.test(String(track.id || ''))) return String(track.id);
     return '';
   }
+  // YouTube's hqdefault/sddefault/default frames are 4:3 with black bars above and below the 16:9 video, so a
+  // square cover cut from them shows the bars and crops the art (#31). hq720 (16:9, no bars) is used instead;
+  // mqdefault, also bar-free, is next when a video has no hq720.
+  const YT_BARRED = /^(https?:\/\/i\d?\.ytimg\.com\/vi(?:_webp)?\/[\w-]{11}\/)(hqdefault|sddefault|default|0)\.(jpg|webp)(\?.*)?$/;
+  function barFreeArt(url) {
+    const m = typeof url === 'string' && url.match(YT_BARRED);
+    return m ? `https://i.ytimg.com/vi/${url.match(YT_THUMB)[1]}/hq720.jpg` : url;
+  }
   // other sizes of a cover we already have (YouTube frames, SoundCloud artwork)
   function artVariants(url) {
     if (!url || typeof url !== 'string') return [];
     const yt = url.match(YT_THUMB);
-    if (yt) return ['hqdefault', 'mqdefault', 'default'].map((s) => `https://i.ytimg.com/vi/${yt[1]}/${s}.jpg`);
+    if (yt) return ['hq720', 'mqdefault', 'hqdefault', 'default'].map((s) => `https://i.ytimg.com/vi/${yt[1]}/${s}.jpg`);
     if (/sndcdn\.com\/.*-(t500x500|original|large|crop|t300x300)\./.test(url)) return ['t500x500', 'large', 't300x300'].map((s) => url.replace(/-(t500x500|original|large|crop|t300x300)\./, `-${s}.`));
     return [];
   }
@@ -9374,7 +9383,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!track) return [];
     const out = [];
     const add = (u) => { if (u && typeof u === 'string' && !out.includes(u)) out.push(u); };
-    [getTrackArt(track).cover, track.localThumbnail, track.thumbnail, track.cover, track.image, track.artworkUrl].forEach((u) => { add(u); artVariants(u).forEach(add); });
+    [getTrackArt(track).cover, track.localThumbnail, track.thumbnail, track.cover, track.image, track.artworkUrl].forEach((u) => { add(barFreeArt(u)); artVariants(u).forEach(add); });
     derivedTrackArt(track).forEach(add);
     // last: the same picture through the in-app server (kept on disk, so a blocked or dead cover host costs one
     // try), which falls back to the song's iTunes cover by artist and title. Computers only.
