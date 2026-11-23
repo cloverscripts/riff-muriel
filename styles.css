@@ -7465,6 +7465,7 @@ body.no-clip-fx .sidebar { background: color-mix(in srgb, var(--md-sys-color-sur
   display: flex;
   gap: 16px;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   scroll-behavior: smooth;
   overscroll-behavior-x: contain;
@@ -8380,7 +8381,7 @@ body.glass.glass-lite :is(.sidebar, .main-content, #right-panel, .playbar, .sear
 /* ---- For you (recommendations) ---- */
 .fy-section { animation: m3FadeUp 350ms cubic-bezier(0.2, 0, 0, 1) both; }
 .fy-genres { flex-wrap: wrap; }
-.fy-row { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; scroll-snap-type: x proximity; }
+.fy-row { display: flex; gap: 14px; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; scrollbar-width: none; scroll-snap-type: x proximity; }
 .fy-row::-webkit-scrollbar { display: none; }
 .fy-card, .fy-artist {
   flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; text-align: left;
@@ -8625,7 +8626,7 @@ body.mini .profile-switch { display: none; }
 .sync-invite-text b { font-size: calc(16px * var(--font-scale, 1)); }
 .sync-invite-text span { font-size: calc(13px * var(--font-scale, 1)); color: var(--md-sys-color-on-surface-variant); line-height: 1.45; }
 #section-home-playlists { padding-top: 6px; }
-.home-pl-row { display: flex; gap: 14px; overflow-x: auto; padding: 2px 2px 10px; scroll-snap-type: x proximity; scrollbar-width: none; }
+.home-pl-row { display: flex; gap: 14px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 10px; scroll-snap-type: x proximity; scrollbar-width: none; }
 .home-pl-row::-webkit-scrollbar { display: none; }
 .home-pl-card { flex: none; width: 150px; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; scroll-snap-align: start; }
 .home-pl-cover { width: 150px; height: 150px; border-radius: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-high); margin-bottom: 4px; transition: transform .2s cubic-bezier(.2, 0, 0, 1); }
@@ -8730,7 +8731,7 @@ body:not(.home-spotify) #sp-home { display: none; }
 .sp-tile-title { font-weight: 600; font-size: calc(14px * var(--font-scale, 1)); }
 .sp-tile-sub { font-size: calc(12px * var(--font-scale, 1)); color: var(--md-sys-color-on-surface-variant); }
 .sp-fade { display: block; white-space: nowrap; overflow: hidden; text-overflow: clip; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
-.sp-row { display: grid; grid-auto-flow: column; grid-auto-columns: 168px; gap: 16px; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; overscroll-behavior-x: contain; padding-bottom: 4px; }
+.sp-row { display: grid; grid-auto-flow: column; grid-auto-columns: 168px; gap: 16px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-behavior: smooth; overscroll-behavior-x: contain; padding: 2px 0 4px; }
 .sp-row::-webkit-scrollbar { display: none; }
 .sp-row.fade-left { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 36px); mask-image: linear-gradient(to right, transparent 0, #000 36px); }
 .sp-row.fade-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent 100%); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent 100%); }
