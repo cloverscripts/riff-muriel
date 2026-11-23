@@ -9125,3 +9125,17 @@ body.mini #btn-playbar-radio { display: none !important; }
 .queue-radio-label[hidden] { display: none; }
 .queue-radio-label svg { flex-shrink: 0; }
 .queue-radio-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* songs already in the Downloads folder (#48) */
+.track-row.is-downloaded .track-row-title::after {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 6px;
+  vertical-align: -1px;
+  background-color: var(--md-sys-color-primary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v6.2l2.3-2.3 1.4 1.4L12 17l-4.7-4.7 1.4-1.4 2.3 2.3V7z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v6.2l2.3-2.3 1.4 1.4L12 17l-4.7-4.7 1.4-1.4 2.3 2.3V7z'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: 0.85;
+}

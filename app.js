@@ -8562,12 +8562,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       const currentCanonicalId = state.currentTrack ? getTrackCanonicalId(state.currentTrack) : '';
       const fragment = document.createDocumentFragment();
+      // rows still on screen are kept, not rebuilt: rebuilding reloaded every cover, and rows blinked while
+      // scrolling (#40)
+      const cache = container._rowCache;
+      const next = new Map();
       for (let idx = startIndex; idx < endIndex; idx++) {
          const track = tracks[idx];
-         const row = createTrackRow(track, idx, currentCanonicalId, context, tracks, container);
-         if (container._hasInitialRendered) row.style.animation = 'none';
+         let row = cache.get(idx);
+         if (!row || row.__track !== track) {
+           row = createTrackRow(track, idx, currentCanonicalId, context, tracks, container);
+           row.__track = track;
+           if (container._hasInitialRendered) row.style.animation = 'none';
+         }
+         if (container._downloaded) row.classList.toggle('is-downloaded', !!container._downloaded[idx]);
+         next.set(idx, row);
          fragment.appendChild(row);
       }
+      container._rowCache = next;
       
       container.innerHTML = '';
       container.style.paddingTop = `${startIndex * itemHeight}px`;
@@ -8575,6 +8586,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       container.appendChild(fragment);
       container._hasInitialRendered = true;
       highlightPlayingRow();
+    }
+
+    // which songs are already downloaded, marked on their rows (#48); one check per list, in pages of 500
+    container._downloaded = null;
+    if ((context === 'favorites' || context === 'playlist') && state.serverPort && !isPhoneApp) {
+      const token = (container._dlToken = (container._dlToken || 0) + 1);
+      (async () => {
+        const marks = [];
+        for (let i = 0; i < tracks.length; i += 500) {
+          const page = tracks.slice(i, i + 500);
+          const res = await fetch(`http://127.0.0.1:${state.serverPort}/api/downloaded-status`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filesOnly: true, tracks: page.map((t) => ({ title: t.title || '', artist: t.artist || '', id: String(t.id || '') })) }),
+          });
+          const data = await res.json();
+          if (!data || !data.success || !Array.isArray(data.downloaded)) return;
+          marks.push(...data.downloaded);
+        }
+        if (container._dlToken !== token) return;
+        container._downloaded = marks;
+        (container._rowCache || new Map()).forEach((row, idx) => row.classList.toggle('is-downloaded', !!marks[idx]));
+      })().catch(() => {});
     }
     
     container._vScrollHandler = () => {
@@ -8594,6 +8627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     container._hasInitialRendered = false;
     container._lastStartIndex = -1;
     container._lastEndIndex = -1;
+    container._rowCache = new Map();
     renderChunk();
   }
 
@@ -16638,11 +16672,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     return false;
   }
 
+  // the X only closes the dialog: a running download goes on in the background, Cancel is what stops it (#48)
   if (el.btnCloseDownloadModal) {
     el.btnCloseDownloadModal.addEventListener('click', () => {
-      if (!cancelCurrentDownload()) {
-        if (el.downloadModal) closeModal(el.downloadModal);
-      }
+      if (downloadAbort) showToast(Tm('Still downloading in the background'), 'info');
+      if (el.downloadModal) closeModal(el.downloadModal);
     });
   }
 
