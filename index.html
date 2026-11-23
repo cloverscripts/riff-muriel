@@ -3092,6 +3092,9 @@
           <span class="download-preview-title" id="download-preview-title">Track title</span>
           <span class="download-preview-artist" id="download-preview-artist">Artist</span>
         </div>
+        <button class="btn-icon-pill download-preview-save" id="btn-save-cover-art" title="Save cover art" aria-label="Save cover art" data-i18n-attr="title aria-label">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
       </div>
 
       <div class="dl-mode-tabs" id="dl-mode-tabs"><button type="button" class="dl-mode-tab active" data-dl-tab="download" data-i18n>Download file</button><button type="button" class="dl-mode-tab" data-dl-tab="trim"><span data-i18n>Trim best part</span><span class="muriel-beta-badge" style="margin-left:6px;">NEW</span></button></div>
@@ -3399,6 +3402,13 @@
         </div>
         <input type="range" class="pill-range" id="tvk-vis-opacity" min="10" max="100" step="5" value="85">
       </div>
+      <div class="tvk-row">
+        <span class="tvk-label" data-i18n>Up next position</span>
+        <div class="tvk-pill-group" id="tvk-upnext-group">
+          <button type="button" class="tvk-pill-btn" data-value="above" data-i18n>Above</button>
+          <button type="button" class="tvk-pill-btn active" data-value="below" data-i18n>Below</button>
+        </div>
+      </div>
       <div class="tvk-actions">
         <button type="button" id="btn-tvk-reset">Reset</button>
       </div>
@@ -3456,6 +3466,23 @@
           <span class="time-label" id="tvk-time-current">0:00</span>
           <input type="range" class="pill-range" id="tvk-seek-slider" min="0" max="1000" step="1" value="0" aria-label="Seek">
           <span class="time-label" id="tvk-time-duration">0:00</span>
+        </div>
+        <div class="tvk-up-next" id="tvk-up-next" role="group" aria-label="Up next" aria-hidden="true">
+          <div class="tvk-up-next-label" data-i18n>Up next</div>
+          <div class="tvk-up-next-body" id="tvk-up-next-body">
+            <div class="tvk-up-next-cover-wrap" id="tvk-up-next-cover-wrap">
+              <img class="tvk-up-next-cover" id="tvk-up-next-cover" src="" alt="" width="44" height="44">
+              <svg class="tvk-up-next-cover-fallback" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            </div>
+            <div class="tvk-up-next-meta">
+              <div class="tvk-up-next-title" id="tvk-up-next-title"></div>
+              <div class="tvk-up-next-artist" id="tvk-up-next-artist"></div>
+            </div>
+            <button class="tvk-up-next-remove" id="btn-tvk-up-next-remove" type="button" title="Remove from queue" aria-label="Remove from queue">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          <div class="tvk-up-next-empty hidden" id="tvk-up-next-empty" data-i18n>Nothing up next.</div>
         </div>
       </div>
       <div class="tv-karaoke-content" id="tv-karaoke-content"></div>

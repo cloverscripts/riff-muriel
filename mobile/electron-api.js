@@ -153,6 +153,61 @@ module.exports = function electronAPI({ ready, port, fs, fileUrlFor }) {
       }
     },
 
+    // cover art: written to the app's cache, then handed to the share sheet ("Save Image" included);
+    // in a desktop browser (dev harness) it's a plain download.
+    async saveImageFile({ base64, fileUrl, defaultName, mime } = {}) {
+      const base = String(defaultName || 'cover art').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').replace(/^\.+/, '').trim().slice(0, 120) || 'cover art';
+      const extFor = (m) => (/png/.test(m) ? 'png' : /webp/.test(m) ? 'webp' : /gif/.test(m) ? 'gif' : /svg/.test(m) ? 'svg' : 'jpg');
+      const toBlob = (data, type) => {
+        const bin = atob(data);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: type || 'image/jpeg' });
+      };
+      let data = typeof base64 === 'string' ? base64 : '';
+      let type = String(mime || 'image/jpeg');
+      if (!data && fileUrl) {
+        try {
+          const r = await fetch(fileUrl);
+          if (r.ok) {
+            const blob = await r.blob();
+            if (blob.size) {
+              type = blob.type || type;
+              data = await new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onload = () => resolve(String(fr.result || '').split(',')[1] || '');
+                fr.onerror = () => reject(fr.error);
+                fr.readAsDataURL(blob);
+              });
+            }
+          }
+        } catch (e) {}
+      }
+      if (!data) return { success: false, error: 'Nothing to save' };
+      const name = `${base.replace(/\.[a-z0-9]{1,5}$/i, '')}.${extFor(type)}`;
+      if (!Capacitor.isNativePlatform()) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(toBlob(data, type));
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        return { success: true };
+      }
+      const loc = { path: `exports/${name}`, directory: Directory.Cache };
+      try {
+        await Filesystem.writeFile({ ...loc, data, recursive: true });
+        const { uri } = await Filesystem.getUri(loc);
+        await Share.share({ title: name, files: [uri], dialogTitle: name });
+        return { success: true };
+      } catch (e) {
+        if (e && /cancel/i.test(String(e.message || e))) return { canceled: true };
+        return { success: false, error: "Couldn't save the picture" };
+      } finally {
+        setTimeout(() => { Filesystem.deleteFile(loc).catch(() => {}); }, 60000);
+      }
+    },
+
     // native share sheet (WhatsApp, Mail, …); falls back to the clipboard
     async shareText(title, text) {
       try { await Share.share({ title, text, dialogTitle: title }); return 'shared'; } catch (e) {

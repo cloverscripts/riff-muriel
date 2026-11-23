@@ -3870,6 +3870,16 @@ body.perf #sleep-timer-status.active::before {
   flex: 1;
 }
 
+.download-preview-save {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.download-preview-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .download-preview-title {
   font-size: calc(16px * var(--font-scale, 1));
   font-weight: 600;
@@ -6225,6 +6235,157 @@ body.intensity-zero .lyric-word.active-word { opacity: 1; color: var(--md-sys-co
   margin: 0;
   padding: 0;
 }
+
+/* Up Next preview (#1): a compact popover anchored above or below the TV controls and album art. */
+.tvk-up-next {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100000;
+  width: min(340px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 12px 12px 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(28, 28, 30, 0.82);
+  color: #fff;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.98);
+  transform-origin: center;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+.tvk-up-next.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+}
+.tvk-up-next-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 9px 2px;
+}
+.tvk-up-next-body {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.tvk-up-next-cover-wrap {
+  position: relative;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.72);
+}
+.tvk-up-next-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tvk-up-next-cover-wrap.no-cover .tvk-up-next-cover {
+  display: none;
+}
+.tvk-up-next-cover-fallback {
+  display: none;
+}
+.tvk-up-next-cover-wrap.no-cover .tvk-up-next-cover-fallback {
+  display: block;
+}
+.tvk-up-next-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tvk-up-next-title {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tvk-up-next-artist {
+  font-size: 12px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.68);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tvk-up-next-remove {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.tvk-up-next-remove:hover {
+  background: rgba(255, 90, 90, 0.28);
+  border-color: rgba(255, 120, 120, 0.7);
+}
+.tvk-up-next-remove:active {
+  transform: scale(0.92);
+}
+.tvk-up-next-remove:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.tvk-up-next-remove:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.tvk-up-next-empty {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.68);
+  padding: 2px 2px 1px;
+}
+.tv-karaoke.tv-idle .tvk-up-next.open {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.tv-karaoke.tv-idle .tvk-up-next,
+.tv-karaoke.tv-idle .tvk-up-next * {
+  cursor: auto;
+}
+
+@media (max-width: 700px) {
+  .tvk-up-next {
+    width: min(300px, calc(100vw - 24px));
+    padding: 10px 10px 10px 12px;
+    border-radius: 16px;
+  }
+  .tvk-up-next-title { font-size: 13px; }
+  .tvk-up-next-artist { font-size: 11px; }
+}
+
 .tvk-row.tvk-row-toggle {
   flex-direction: row;
   align-items: center;
