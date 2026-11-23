@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onWelcomeResult: (cb) => ipcRenderer.on('welcome-result', (e, d) => cb(d)),
   getLauncherInfo: () => ipcRenderer.invoke('launcher-info'),
   listPlugins: () => ipcRenderer.invoke('plugins-list'),
+  listSkippedPlugins: () => ipcRenderer.invoke('plugins-skipped'),
   setPluginEnabled: (file, on) => ipcRenderer.send('plugins-set-enabled', file, on),
   disableAllPlugins: () => ipcRenderer.send('plugins-disable-all'),
   openPluginsFolder: () => ipcRenderer.send('plugins-open-folder'),

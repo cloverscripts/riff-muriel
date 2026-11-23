@@ -6,7 +6,8 @@ const { DATA_DIR } = require('./platform');
 const PLUGINS_DIR = path.join(DATA_DIR, 'plugins');
 const STATE_PATH = path.join(PLUGINS_DIR, 'plugins.json');
 const MAX_BYTES = 1024 * 1024;
-const safeName = (n) => /^[\w.\- ]+\.js$/.test(String(n)) && !String(n).includes('..');
+// any ordinary file name ending in .js ("my plugin (1).js" too, #38), but no paths, hidden files or '..'
+const safeName = (n) => /^[^\\/:*?"<>|\u0000-\u001f]+\.js$/i.test(String(n)) && !String(n).includes('..') && !String(n).startsWith('.');
 
 const EXAMPLE = '/**\n * @name Hello plugin\n * @author Muriel\n * @version 1.0.0\n * @description Shows a message when the track changes. Edit or delete this file.\n */\nconst off = Muriel.on(\'trackchange\', (track) => Muriel.toast(\'Now playing: \' + track.title));\nreturn { stop() { off(); } };\n';
 
@@ -38,6 +39,21 @@ function parseMeta(code, fallbackName) {
   return { name: pick('name') || fallbackName, author: pick('author'), version: pick('version'), description: pick('description') };
 }
 
+// files in the folder that look like plugins but can't load, with what to do about them (#38)
+function skippedFiles() {
+  const out = [];
+  for (const f of fs.readdirSync(PLUGINS_DIR)) {
+    if (f === 'plugins.json') continue;
+    let reason = '';
+    if (/\.js\.(txt|text)$/i.test(f)) reason = 'Saved as a text file: rename it to end in .js';
+    else if (/\.(mjs|cjs|ts)$/i.test(f)) reason = 'Plugins must be plain .js files';
+    else if (/\.js$/i.test(f) && !safeName(f)) reason = 'Rename the file: its name has characters Muriel can\'t use';
+    else if (/\.js$/i.test(f)) { try { if (fs.statSync(path.join(PLUGINS_DIR, f)).size > MAX_BYTES) reason = 'Too big: plugins can be up to 1 MB'; } catch (e) {} }
+    if (reason) out.push({ file: f, reason });
+  }
+  return out;
+}
+
 function listAll() {
   ensureDir();
   const enabled = readState();
@@ -53,6 +69,7 @@ function listAll() {
 
 function register(getWindow) {
   ipcMain.handle('plugins-list', () => listAll());
+  ipcMain.handle('plugins-skipped', () => { ensureDir(); return skippedFiles(); });
   ipcMain.on('plugins-set-enabled', (e, file, on) => {
     if (!safeName(file)) return;
     const s = readState();
@@ -89,4 +106,4 @@ function register(getWindow) {
   });
 }
 
-module.exports = { register };
+module.exports = { register, safeName };

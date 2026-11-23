@@ -13704,10 +13704,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!silent && !hadStop) showToast(Tm('Restart Muriel to fully unload "{0}"', p.name), 'info');
   }
   let pluginsCache = [];
+  let pluginsSkipped = [];
+  // files in the plugins folder that can't load, each with what to do (#38)
+  function renderSkippedPlugins(list) {
+    pluginsSkipped.forEach((x) => {
+      const row = document.createElement('div');
+      row.className = 'ct-empty plugin-skipped';
+      row.textContent = `${x.file}: ${T(x.reason)}`;
+      list.appendChild(row);
+    });
+  }
+  async function refreshSkippedPlugins() {
+    try { pluginsSkipped = (window.electronAPI && window.electronAPI.listSkippedPlugins) ? (await window.electronAPI.listSkippedPlugins()) || [] : []; } catch (e) { pluginsSkipped = []; }
+  }
   function renderPluginCards() {
     const list = document.getElementById('plugins-list');
     if (!list) return;
     list.innerHTML = '';
+    renderSkippedPlugins(list);
     if (!pluginsCache.length) {
       const empty = document.createElement('div');
       empty.className = 'ct-empty';
@@ -13744,6 +13758,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.electronAPI || !window.electronAPI.listPlugins) return;
     pluginsCache = await window.electronAPI.listPlugins();
     pluginsCache.filter((p) => p.enabled).forEach(runPlugin);
+    await refreshSkippedPlugins();
     renderPluginCards();
   }
   const pluginsApi = window.electronAPI;
@@ -13753,7 +13768,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const present = new Set(pluginsCache.map((x) => x.file));
       [...loadedPlugins.keys()].filter((f) => !present.has(f)).forEach((f) => stopPlugin({ file: f, name: f }, true));
     }
+    await refreshSkippedPlugins();
     renderPluginCards();
+    showToast(Tm(pluginsCache.length === 1 ? '1 plugin found' : '{0} plugins found', pluginsCache.length), 'info');
   }
   if (pluginsApi && pluginsApi.listPlugins) {
     document.getElementById('btn-plugins-folder').addEventListener('click', () => pluginsApi.openPluginsFolder());
