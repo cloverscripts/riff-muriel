@@ -6683,6 +6683,21 @@ const server = http.createServer(guardHandler(async (req, res) => {
     return handleLocalTrack(req, res, trackId);
   }
 
+  // the songs in the Downloads folder, read back from their "Artist - Title" names, to rebuild a lost
+  // playlist from them (#46)
+  if (parsedUrl.pathname === '/api/downloads-list') {
+    const map = await buildDownloadsIndex();
+    const songs = [...map.values()].sort((a, b) => a.localeCompare(b)).map((file) => {
+      const base = file.slice(0, file.length - path.extname(file).length);
+      const cut = base.indexOf(' - ');
+      const artist = cut > 0 ? base.slice(0, cut).trim() : '';
+      const title = (cut > 0 ? base.slice(cut + 3) : base).trim();
+      return { file, artist: /^unknown artist$/i.test(artist) ? '' : artist, title };
+    });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ success: true, songs }));
+  }
+
   if (parsedUrl.pathname === '/api/downloaded-track') {
     const name = parsedUrl.query.name || '';
     return handleDownloadedTrack(req, res, name);

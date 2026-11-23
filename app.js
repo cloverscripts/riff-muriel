@@ -19170,6 +19170,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Settings → Storage → Recover downloaded songs (#46): a playlist of everything in the Downloads folder. The
+  // songs play from those files (the server finds a download by its artist and title before looking anywhere)
+  const btnRecoverDownloads = document.getElementById('btn-recover-downloads');
+  if (btnRecoverDownloads) {
+    if (isPhoneApp) { const row = document.getElementById('recover-downloads-item'); if (row) row.hidden = true; }
+    btnRecoverDownloads.addEventListener('click', async () => {
+      btnRecoverDownloads.disabled = true;
+      try {
+        const res = await fetch(`http://127.0.0.1:${state.serverPort}/api/downloads-list`);
+        const data = await res.json();
+        const songs = (data && data.songs) || [];
+        if (!songs.length) { showToast(Tm('No downloaded songs found in your Downloads folder'), 'info'); return; }
+        const tracks = songs.map((x) => ({
+          id: 'dl_' + x.file.replace(/[^\w-]+/g, '_').slice(0, 80),
+          title: x.title,
+          artist: x.artist,
+          platform: 'youtube',
+          url: '',
+          searchQuery: (x.artist ? x.artist + ' - ' : '') + x.title,
+        }));
+        createPlaylist(T('Recovered downloads'), tracks);
+        showToast(Tm(tracks.length === 1 ? 'Recovered 1 song' : 'Recovered {0} songs', tracks.length), 'success');
+      } catch (e) {
+        showToast(Tm("Couldn't read the Downloads folder"), 'error');
+      } finally {
+        btnRecoverDownloads.disabled = false;
+      }
+    });
+  }
+
   const btnClearOffline = document.getElementById('btn-clear-offline');
   const clearOfflineModal = document.getElementById('clear-offline-modal');
   const btnCancelClearOffline = document.getElementById('btn-cancel-clear-offline');
