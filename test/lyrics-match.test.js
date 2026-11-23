@@ -51,3 +51,12 @@ test('pickBest refuses a title match from the wrong artist unless the length mat
   assert.strictEqual(pickBest(null, want, 0), null);
   assert.strictEqual(pickBest([{ trackName: 'Hello', artistName: 'Adele', instrumental: true }], parseForLyrics('Hello', 'Adele'), 0), null);
 });
+
+test('a same-name song by another artist is not taken for this one (#47)', () => {
+  const { pickBest, parseForLyrics } = require('../lyrics-match');
+  const want = parseForLyrics('Stay', 'Rihanna');
+  const other = { trackName: 'Stay', artistName: 'Zedd', duration: 212, syncedLyrics: '[00:01.00] x' };
+  assert.equal(pickBest([other], want, 210), null);
+  const mine = { trackName: 'Stay', artistName: 'Rihanna', duration: 240, syncedLyrics: '[00:01.00] y' };
+  assert.equal(pickBest([other, mine], want, 240), mine);
+});

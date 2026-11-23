@@ -81,7 +81,9 @@
       const a = Math.max(0, ...want.artists.map((w) => overlap(w, item.artistName)));
       const d = duration > 0 && item.duration > 0 ? Math.abs(item.duration - duration) : null;
       if (t < 0.6) continue;
-      if (a < 0.5 && !(d !== null && d <= 3)) continue;
+      // another artist's song of the same name is often within a few seconds of this one's length (#47):
+      // without the artist, only an exact title at practically the same length counts
+      if (a < 0.5 && !(d !== null && d <= 1 && want.titles.some((w) => norm(w) === norm(item.trackName || item.name)))) continue;
       let score = t * 3 + a * 2 + (item.syncedLyrics ? 1 : 0);
       if (d !== null) score += d <= 2 ? 1.5 : d <= 8 ? 0.5 : -1;
       if (score > bestScore) { best = item; bestScore = score; }
