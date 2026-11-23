@@ -10219,7 +10219,85 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (el.playlistTracksList) renderTracks(el.playlistTracksList, filtered, 'playlist');
     switchView('playlist-detail');
     renderPlaylistsList();
+    if (opening) loadPlaylistSuggestions(pl, false);
   }
+
+  // Suggested songs under a playlist (#49), like Spotify's: song radio (YouTube Music radio, Last.fm and Deezer)
+  // seeded with a few of its songs, leaving out what's in it already. Off with Settings → Song radio.
+  const plSuggest = { cache: new Map(), token: 0 };
+  async function loadPlaylistSuggestions(pl, refresh) {
+    const box = document.getElementById('playlist-suggestions');
+    const list = document.getElementById('playlist-suggestions-list');
+    if (!box || !list) return;
+    const enabled = (() => { try { return localStorage.getItem('muriel_song_radio') !== '0'; } catch (e) { return true; } })();
+    const songs = (pl.tracks || []).filter((t) => t && t.title && t.platform !== 'local');
+    if (!enabled || !songs.length || !state.serverPort) { box.hidden = true; return; }
+    const token = ++plSuggest.token;
+    let tracks = !refresh && plSuggest.cache.get(pl.id);
+    if (!tracks) {
+      box.hidden = false;
+      list.innerHTML = `<div class="empty-hint" data-i18n>${T('Finding songs…')}</div>`;
+      const pool = songs.slice();
+      const seeds = [];
+      while (pool.length && seeds.length < 5) seeds.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+      const key = (t) => `${Lib.nameKey(t && t.artist)}::${Lib.nameKey(t && t.title)}`;
+      const blocks = getBlocks();
+      try {
+        const res = await fetch(`http://127.0.0.1:${state.serverPort}/api/radio`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            seeds: seeds.map((t) => ({ id: t.id || '', title: t.title || '', artist: t.artist || '', platform: t.platform || 'youtube' })),
+            limit: 10,
+            exclude: { ids: songs.map((t) => String(t.id || '')).filter(Boolean), keys: songs.map(key) },
+            blocks: { artists: blocks.artists, songs: blocks.songs },
+          }),
+        });
+        const data = await res.json();
+        const have = new Set(songs.map(key));
+        tracks = (data && data.success && Array.isArray(data.tracks) ? data.tracks : []).filter((t) => t && t.title && !have.has(key(t)) && !isBlocked(t));
+      } catch (e) { tracks = []; }
+      if (token !== plSuggest.token) return;
+      plSuggest.cache.set(pl.id, tracks);
+    }
+    if (state.currentPlaylistId !== pl.id) return;
+    if (!tracks.length) { box.hidden = true; return; }
+    box.hidden = false;
+    list.innerHTML = '';
+    tracks.forEach((t) => {
+      const row = document.createElement('div');
+      row.className = 'playlist-suggestion';
+      row.innerHTML = '<img alt="" loading="lazy" decoding="async"><div class="ps-text"><span class="ps-title"></span><span class="ps-artist"></span></div><button class="btn-icon-pill ps-add" type="button"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>';
+      const img = row.querySelector('img');
+      img.src = listThumb(getTrackThumbUrl(t)) || '';
+      img.onerror = () => { img.style.visibility = 'hidden'; };
+      row.querySelector('.ps-title').textContent = t.title;
+      row.querySelector('.ps-artist').textContent = t.artist || '';
+      const add = row.querySelector('.ps-add');
+      add.title = T('Add to playlist');
+      add.setAttribute('aria-label', add.title);
+      add.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const cur = state.playlists.find((p) => p.id === pl.id);
+        if (!cur) return;
+        if (!cur.tracks.some((x) => isSameTrack(x, t))) {
+          cur.tracks.push(stampAddedAt(t));
+          savePlaylists();
+          showToast(Tm('Added to "{0}"', cur.name), 'success');
+        }
+        plSuggest.cache.set(pl.id, (plSuggest.cache.get(pl.id) || []).filter((x) => x !== t));
+        openPlaylistDetail(pl.id);
+        loadPlaylistSuggestions(cur, false);
+      });
+      row.addEventListener('click', () => playTrack(t, tracks, tracks.indexOf(t)));
+      list.appendChild(row);
+    });
+  }
+  const btnPlSuggestMore = document.getElementById('btn-playlist-suggestions-more');
+  if (btnPlSuggestMore) btnPlSuggestMore.addEventListener('click', () => {
+    const pl = state.playlists.find((p) => p.id === state.currentPlaylistId);
+    if (pl) loadPlaylistSuggestions(pl, true);
+  });
 
   if (el.playlistSort) {
     el.playlistSort.addEventListener('change', () => {

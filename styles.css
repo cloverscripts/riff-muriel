@@ -9139,3 +9139,14 @@ body.mini #btn-playbar-radio { display: none !important; }
           mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v6.2l2.3-2.3 1.4 1.4L12 17l-4.7-4.7 1.4-1.4 2.3 2.3V7z'/%3E%3C/svg%3E") center / contain no-repeat;
   opacity: 0.85;
 }
+
+/* suggested songs under a playlist (#49) */
+.playlist-suggestions { margin-top: 28px; }
+.playlist-suggestions-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.playlist-suggestions-head h3 { margin: 0; font-size: calc(17px * var(--font-scale, 1)); font-weight: 600; }
+.playlist-suggestion { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; cursor: pointer; }
+.playlist-suggestion:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 6%, transparent); }
+.playlist-suggestion img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--md-sys-color-surface-container-high); }
+.playlist-suggestion .ps-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.playlist-suggestion .ps-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.playlist-suggestion .ps-artist { font-size: calc(13px * var(--font-scale, 1)); color: var(--md-sys-color-on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
