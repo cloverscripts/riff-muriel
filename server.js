@@ -4527,6 +4527,23 @@ async function handlePlaylistImport(req, res, inputUrl) {
   const host = (parsed.hostname || '').toLowerCase();
   const isSoundCloud = host === 'soundcloud.com' || host === 'www.soundcloud.com' || host.endsWith('.soundcloud.com');
   const isYouTube = host === 'youtube.com' || host === 'music.youtube.com' || host === 'www.youtube.com' || host === 'youtu.be' || host.endsWith('.youtube.com');
+  const isTikTok = host === 'tiktok.com' || host.endsWith('.tiktok.com');
+
+  // a TikTok video or sound (Riff 0.7): its sound becomes one song, played through yt-dlp like any link
+  if (isTikTok) {
+    try {
+      const info = JSON.parse(await executeYtDlp(['--no-config', '--no-playlist', '--dump-single-json', '--no-warnings', '--', inputUrl], 15000, { priority: 'play', reason: 'tiktok-import' }));
+      const title = String(info.track || info.title || 'TikTok sound').replace(/#[^\s#]+/g, '').replace(/\s+/g, ' ').trim() || 'TikTok sound';
+      const artist = String(info.artist || info.uploader || info.creator || 'TikTok').trim();
+      const page = info.webpage_url && /^https:\/\/(www\.)?tiktok\.com\//.test(info.webpage_url) ? info.webpage_url : inputUrl;
+      const track = { id: 'tt_' + String(info.id || '').replace(/[^\w-]/g, ''), title, artist, duration: Math.round(Number(info.duration) || 0), thumbnail: info.thumbnail || '', platform: 'tiktok', url: page };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: true, name: title, cover: track.thumbnail, tracks: [track] }));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: "Couldn't read that TikTok link" }));
+    }
+  }
 
   if (!isSoundCloud && !isYouTube) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
