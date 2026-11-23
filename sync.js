@@ -372,10 +372,17 @@
     render();
     const tp = new window.Peer(`muriel-j-${hex(12)}`, serverOpts());
     const done = (error) => { clearTimeout(timer); try { tp.destroy(); } catch (e) {} joining = error ? { code, error } : null; render(); };
-    const timer = setTimeout(() => done("No device answered. Check the code, and that Muriel shows it on the other device."), 20000);
+    // the code was found but the two devices couldn't reach each other directly (a router or mobile network that
+    // blocks it, #39): same Wi-Fi and Muriel open on both is what gets them through
+    let found = false;
+    const timer = setTimeout(() => done(found
+      ? "Found the other device but couldn't connect to it. Put both devices on the same Wi-Fi, keep Muriel open on both, and try again."
+      : "No device answered. Check the code, and that Muriel shows it on the other device."), 20000);
     tp.on('error', (err) => done(err && err.type === 'peer-unavailable' ? 'No device is showing that code right now.' : "Couldn't reach the link service. Check your internet connection."));
     tp.on('open', () => {
       const conn = tp.connect(`muriel-link-${code.toLowerCase()}`, { reliable: true });
+      // the link service knows the code (an unknown one fails with peer-unavailable right away)
+      setTimeout(() => { found = true; }, 3000);
       conn.on('open', () => conn.send({ t: 'join', id: device.id, name: device.name, kind, v: 1 }));
       conn.on('data', (msg) => {
         if (!msg || msg.t !== 'welcome' || !msg.group || !msg.group.secret) return;
