@@ -67,6 +67,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- the "Play in the background" switch: asks to be left out of battery optimization -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- in-app updates: the downloaded Muriel.apk goes to Android's installer (AppUpdaterPlugin) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Android 10 and older: downloaded songs are saved to Music/Muriel on the phone's storage (mobile/shims/store.js;
          asked for on the first download). Android 11+ needs no permission for the files the app saves there.
          requestLegacyExternalStorage above makes such paths writable on Android 10; newer versions ignore it. -->

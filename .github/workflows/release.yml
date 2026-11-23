@@ -36,12 +36,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # channel: what update-core.js checks this build against, and how desktop-updater.js replaces it
           - os: windows-latest
             flag: --win
+            channel: windows-setup
           - os: ubuntu-latest
             flag: --linux
+            channel: linux
           - os: macos-latest
             flag: --mac dmg zip --x64 --arm64
+            channel: mac
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +57,9 @@ jobs:
         shell: bash
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
       - run: npm ci
+      - name: Stamp the build for update checks
+        shell: bash
+        run: node tools/build-info.mjs build-info.js ${{ matrix.channel }}
       - name: Build and upload to the release
         shell: bash
         env:
