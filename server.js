@@ -13,6 +13,9 @@ const PORT = 38472;
 const { DATA_DIR, CACHE_DIR, CUSTOM_LYRICS_DIR, LYRICS_DIR, THUMBNAILS_DIR, METADATA_PATH, LIBRARY_DIR, LIBRARY_PATH, ytDlpCommand, resolveDownloadDir, resolveBinary } = require('./platform');
 // iOS can't hand a cross-origin stream to Web Audio, so it plays everything from the disk cache.
 const STREAM_VIA_CACHE = !!require('./platform').STREAM_VIA_CACHE;
+// phones only (mobile/shims/platform.js): a URL that starts playing at once, or null when the phone can't
+const platformLiveStream = require('./platform').liveStream;
+let liveStreamingId = null; // the song last started as a live stream on a phone
 const logger = require('./logger');
 const { getSystemAudioOutputInfo } = require('./audio-output');
 const ytmArtist = require('./ytm-artist');
@@ -2379,12 +2382,13 @@ async function alternativeUploads(cleanId, title, artist, duration) {
 }
 
 // fresh: the app could not play the URL it got last time (or the lookup failed): skip the remembered URL
-async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube', title = '', artist = '', duration = 0, thumbnail = '', fresh = false) {
+async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube', title = '', artist = '', duration = 0, thumbnail = '', fresh = false, next = false) {
   let cleanId = cleanTrackId(trackId);
   if (!cleanId && trackUrl && trackUrl.includes('v=')) {
     cleanId = cleanTrackId(trackUrl.split('v=')[1].split('&')[0]);
   }
   const meta = { title, artist, duration, thumbnail };
+  if (!next) liveStreamingId = null; // another song is starting
 
   const [cachedFile, downloadedName] = await Promise.all([
     cleanId ? findCachedFile(cleanId) : Promise.resolve(null),
@@ -2446,6 +2450,26 @@ async function handleStreamInfo(req, res, trackUrl, trackId, platform = 'youtube
   trackUrl = ytTarget.url;
 
   if (STREAM_VIA_CACHE) {
+    // Phones: a tapped YouTube song starts streaming right away (HLS through hls.js) instead of waiting for the
+    // whole file to download; the file is cached in the background, so the next play (and offline) is local.
+    // Not for the next song in the queue (next=1, the app asks ahead of time): that one is still downloaded
+    // whole, so it starts from disk even when the phone is locked. A retry (fresh) or a phone without Media
+    // Source support takes the download route below, as before.
+    const live = !fresh && !next && ytTarget.youtube && cleanId && typeof platformLiveStream === 'function'
+      ? await platformLiveStream(trackUrl).catch((e) => { try { logger.log('warn', `stream: live ${cleanId} failed, downloading: ${e && e.message}`); } catch (_) {} return null; })
+      : null;
+    if (live) {
+      const outcome = { success: true, isLocal: false, isHls: true, streamUrl: live };
+      resolveLookup(outcome);
+      if (cacheKey && streamUrlCache.get(cacheKey) === inFlightEntry) streamUrlCache.delete(cacheKey);
+      liveStreamingId = cleanId;
+      // cache it once it has played a little (and only if it is still the song playing: a skip drops it)
+      setTimeout(() => {
+        if (liveStreamingId === cleanId) downloadTrackToDisk(trackUrl, cleanId, platform, meta, 'background').catch(() => {});
+      }, 15000);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(outcome));
+    }
     // the app gave up on this song (the listener skipped on): stop downloading it, and don't start fallbacks
     let gone = false;
     req.on('close', () => {
@@ -6692,7 +6716,7 @@ const server = http.createServer(guardHandler(async (req, res) => {
     const artist = parsedUrl.query.artist || '';
     const duration = parsedUrl.query.duration || 0;
     const thumbnail = parsedUrl.query.thumbnail || '';
-    return handleStreamInfo(req, res, trackUrl, trackId, platform, title, artist, duration, thumbnail, parsedUrl.query.fresh === '1');
+    return handleStreamInfo(req, res, trackUrl, trackId, platform, title, artist, duration, thumbnail, parsedUrl.query.fresh === '1', parsedUrl.query.next === '1');
   }
 
   if (parsedUrl.pathname === '/api/local-track') {

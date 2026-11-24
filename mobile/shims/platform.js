@@ -15,6 +15,18 @@ const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 const BIN_DIR = path.join(DATA_DIR, 'bin');
 
 const noop = () => {};
+
+// A YouTube song as an HLS playlist URL the app can start playing at once (hls.js, see mobile/hls-loader.js),
+// or null when this phone's WebView has no Media Source support (then the song is downloaded first, as before).
+async function liveStream(target) {
+  const Hls = typeof window !== 'undefined' && window.Hls;
+  if (!Hls || !Hls.isSupported() || !globalThis.__murielHlsHeaders) return null;
+  const audio = await require('../extract').resolveAudio(target);
+  if (audio.kind !== 'hls' || (audio.container && audio.container !== 'aac')) return null;
+  globalThis.__murielHlsHeaders.remember(audio.url, audio.headers);
+  return audio.url;
+}
+
 module.exports = {
   clearBinaryCache: noop,
   IS_WIN: false, DATA_DIR, DEFAULT_DATA_DIR: DATA_DIR, CONFIG_PATH, BIN_DIR, CACHE_DIR, CUSTOM_LYRICS_DIR, LYRICS_DIR,
@@ -24,6 +36,7 @@ module.exports = {
   // the child_process shim recognises this and answers with the in-app YouTube/SoundCloud client
   ytDlpCommand: (args) => ({ bin: 'yt-dlp', args }),
   STREAM_VIA_CACHE: true,
+  liveStream,
   tutorialDone: () => true, markTutorialDone: noop,
   readStartupConfig: () => ({}), writeStartupConfig: () => true,
   readConfig: () => ({}), resolveDataDir: () => DATA_DIR, setDataDir: noop,

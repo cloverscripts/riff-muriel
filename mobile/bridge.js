@@ -231,6 +231,9 @@ if (Capacitor.getPlatform() === 'android') {
   App.getLaunchUrl().then((r) => deliver(r && r.url)).catch(() => {});
 }
 
+// hls.js fetches with native HTTP, so a tapped song can stream at once (mobile/hls-loader.js)
+require('./hls-loader')();
+
 ready = start();
 window.electronAPI = electronAPI({ ready, port: PORT, fs, fileUrlFor });
 require('./live-activity')();
