@@ -3973,7 +3973,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.nativeAudio.preload = 'auto';
 
     if (data.isHls && window.Hls && Hls.isSupported()) {
-      hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true, maxBufferLength: 30, maxMaxBufferLength: 60, maxBufferSize: 30 * 1000 * 1000 });
+      // Phones (mobile/hls-loader.js) buffer the whole song while it plays: audio is ~1 MB a minute, and a
+      // locked iPhone may stop feeding the media source, so a 30-second buffer could run dry in the pocket
+      const phone = !!(window.electronAPI && window.electronAPI.isMobile);
+      hlsInstance = new Hls(phone
+        ? { enableWorker: true, startPosition: 0, maxBufferLength: 1800, maxMaxBufferLength: 3600, maxBufferSize: 120 * 1000 * 1000, backBufferLength: Infinity }
+        : { enableWorker: true, lowLatencyMode: true, maxBufferLength: 30, maxMaxBufferLength: 60, maxBufferSize: 30 * 1000 * 1000 });
       hlsInstance.loadSource(data.streamUrl);
       hlsInstance.attachMedia(el.nativeAudio);
       hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
