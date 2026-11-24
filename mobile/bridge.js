@@ -231,6 +231,9 @@ if (Capacitor.getPlatform() === 'android') {
   App.getLaunchUrl().then((r) => deliver(r && r.url)).catch(() => {});
 }
 
+// a copy of playlists & co. on disk, put back when the phone lost localStorage (a dead battery)
+require('./state-mirror')();
+
 ready = start();
 window.electronAPI = electronAPI({ ready, port: PORT, fs, fileUrlFor });
 require('./live-activity')();
