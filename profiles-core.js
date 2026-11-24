@@ -22,6 +22,8 @@
     // asked, shown or done once per device
     'muriel_update_found', 'muriel_update_last', 'muriel_update_snooze', 'muriel_welcome_done', 'muriel_bg_asked',
     'muriel_scale_rebased_v2', 'muriel_debug_log',
+    // which copy of the library on disk this storage matches (phones, mobile/state-mirror.js)
+    'muriel_state_seq',
     // a copy of the open language's translations for a quick start (i18n.js); which language is per profile
     'muriel_i18n_snap',
   ]);
@@ -212,6 +214,8 @@
       open: (pid) => setActive(store, pid),
       // one key of any profile, without opening it (song counts in Settings, the phone's song cache)
       peek: (pid, key) => store.get(rawKey(pid, key)),
+      // every profile's keys as stored (the phone's copy on disk, mobile/state-mirror.js)
+      raw: store,
       isDevice,
       COLORS,
     };
